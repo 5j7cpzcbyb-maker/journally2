@@ -1,5 +1,5 @@
 // This file tells your app WHERE your database is located.
-import { createClient } from '@supabase/supabase-api-js';
+import { createClient } from '@supabase/supabase-js';
 
 // Replace these two lines with the actual keys from your Supabase dashboard
 const supabaseUrl = 'https://wnxpybhtdfiqgnmxpnkr.supabase.co';
