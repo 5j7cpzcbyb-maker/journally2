@@ -60,6 +60,15 @@ export const addGoal = async (userId, title) => {
   return { data, error };
 };
 
+// UPDATE A GOAL TITLE
+export const updateGoalTitle = async (goalId, newTitle) => {
+  const { error } = await supabase
+    .from('goals')
+    .update({ title: newTitle })
+    .eq('id', goalId);
+  return { error };
+};
+
 // 2. FETCH GOALS FOR "DAILY" VIEW
 // IMPORTANT: We filter out the "Ghosts" (deleted goals) here.
 export const getDailyGoals = async (userId) => {
