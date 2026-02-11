@@ -13,17 +13,23 @@ export default function Auth() {
     e.preventDefault();
     setLoading(true);
 
-    if (isSignUp) {
-      const { error } = await signUpUser(email, password, firstName, lastName);
-      if (error) alert(error.message);
-      else alert('Check your email for a verification link!');
-    } else {
-      const { error } = await signInUser(email, password);
-      if (error) alert(error.message);
+    try {
+      if (isSignUp) {
+        const { error } = await signUpUser(email, password, firstName, lastName);
+        if (error) throw error; // Jump to catch block
+        alert('Check your email for a verification link!');
+      } else {
+        const { error } = await signInUser(email, password);
+        if (error) throw error;
+      }
+    } catch (error) {
+      alert(error.message);
+    } finally {
+      // THIS IS THE KEY: This runs no matter what, unfreezing the button.
+      setLoading(false);
     }
-    setLoading(false);
   };
-
+  
   return (
     <div className="max-w-md mx-auto mt-10 p-8 bg-white rounded-3xl shadow-2xl border-b-8 border-[#D45D21]">
       <h2 className="text-3xl font-bold text-[#3E7C7D] mb-6 text-center">
