@@ -5,10 +5,12 @@ import DailyPage from './DailyPage';
 import Auth from './Auth'; 
 import SummaryPage from './SummaryPage'; // Ensure this is imported!
 import CirclesPage from './CirclesPage';
+import SettingsPage from './SettingsPage';
 
 export default function App() {
   const [currentPage, setCurrentPage] = useState('Daily');
   const [user, setUser] = useState(null);
+  const [showMenu, setShowMenu] = useState(false); // Controls if the dropdown is open
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -41,19 +43,43 @@ export default function App() {
 
   return (
     <div className={`min-h-screen ${retroTheme.background} text-gray-800`}>
-      <header className="pt-10 pb-6 text-center">
+      <header className="pt-10 pb-6 text-center relative px-6">
         <h1 className={`text-6xl ${retroTheme.accent}`} style={{ fontFamily: retroTheme.font }}>
           Journally
         </h1>
-        <div className="flex justify-center items-center gap-4 mt-2">
-          <p className="text-lg italic">Welcome, {user?.user_metadata?.first_name}</p>
-          <button 
-            onClick={() => supabase.auth.signOut()}
-            className="text-xs bg-gray-200 px-2 py-1 rounded hover:bg-gray-300"
-          >
-            Logout
-          </button>
-        </div>
+        
+        {/* HAMBURGER BUTTON */}
+        <button 
+          onClick={() => setShowMenu(!showMenu)} 
+          className="absolute right-6 top-12 text-[#3E7C7D] hover:scale-110 transition-transform"
+        >
+          <div className="space-y-1">
+            <div className="w-8 h-1 bg-[#3E7C7D] rounded"></div>
+            <div className="w-8 h-1 bg-[#3E7C7D] rounded"></div>
+            <div className="w-8 h-1 bg-[#3E7C7D] rounded"></div>
+          </div>
+        </button>
+
+        <p className="mt-2 text-lg italic">Welcome, {user?.user_metadata?.first_name}</p>
+
+        {/* FLOATING MENU POP-OVER */}
+        {showMenu && (
+          <div className="absolute top-24 right-6 bg-white shadow-2xl rounded-2xl p-4 z-50 border-2 border-[#D45D21] w-40">
+            <button 
+              onClick={() => { setCurrentPage('Settings'); setShowMenu(false); }} 
+              className="block w-full text-left p-2 hover:bg-orange-50 rounded font-bold text-[#3E7C7D]"
+            >
+              Settings
+            </button>
+            <hr className="my-2" />
+            <button 
+              onClick={() => supabase.auth.signOut()} 
+              className="block w-full text-left p-2 text-red-500 hover:bg-red-50 rounded"
+            >
+              Logout
+            </button>
+          </div>
+        )}
       </header>
 
       <main className="px-4 pb-32">
@@ -91,6 +117,19 @@ export default function App() {
               exit={{ opacity: 0, x: -20 }}
             >
               <CirclesPage userId={user.id} />
+            </motion.div>
+          )}
+
+
+          {/* SETTINGS PAGE LOGIC */}
+          {currentPage === 'Settings' && (
+            <motion.div 
+              key="settings" 
+              initial={{ opacity: 0, y: 20 }} 
+              animate={{ opacity: 1, y: 0 }} 
+              exit={{ opacity: 0, y: -20 }}
+            >
+              <SettingsPage userId={user.id} />
             </motion.div>
           )}
             
