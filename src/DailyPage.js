@@ -1,15 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, ChevronLeft, ChevronRight, CheckCircle, Circle, Trash2, ArchiveRestore, ChevronDown, ChevronUp } from 'lucide-react';
-// Added permanentDeleteGoal to the import list below
 import { 
-  getDailyGoals, 
-  addGoal, 
-  toggleGoalCheck, 
-  deleteGoal, 
-  getGoalLogs, 
-  getAllGoalsHistory, 
-  restoreGoal,
-  permanentDeleteGoal 
+  Plus, ChevronLeft, ChevronRight, CheckCircle, Circle, 
+  Trash2, ArchiveRestore, ChevronDown, ChevronUp, Pencil, Save, X 
+} from 'lucide-react';
+import { 
+  getDailyGoals, addGoal, toggleGoalCheck, deleteGoal, 
+  getGoalLogs, getAllGoalsHistory, restoreGoal, 
+  permanentDeleteGoal, updateGoalTitle 
 } from './api';
 
 export default function DailyPage({ userId }) {
@@ -20,13 +17,16 @@ export default function DailyPage({ userId }) {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [showArchive, setShowArchive] = useState(false);
 
+  // States for Inline Editing
+  const [editingId, setEditingId] = useState(null);
+  const [editTitle, setEditTitle] = useState('');
+
   useEffect(() => {
     loadGoals();
   }, [selectedDate, userId]);
 
   const loadGoals = async () => {
     const dateStr = selectedDate.toISOString().split('T')[0];
-    
     const { data: goalsData } = await getDailyGoals(userId);
     const { data: allHistory } = await getAllGoalsHistory(userId);
     const { data: logsData } = await getGoalLogs(userId);
@@ -59,6 +59,17 @@ export default function DailyPage({ userId }) {
     } else {
       setCompletedGoals(prev => prev.filter(id => id !== goalId));
     }
+  };
+
+  const handleUpdate = async (goalId) => {
+    if (!editTitle.trim()) {
+      setEditingId(null);
+      return;
+    }
+    const { error } = await updateGoalTitle(goalId, editTitle);
+    if (error) alert(error.message);
+    setEditingId(null);
+    loadGoals();
   };
 
   const handleDelete = async (goalId) => {
@@ -118,23 +129,63 @@ export default function DailyPage({ userId }) {
       <div className="space-y-4">
         {goals.map((goal) => {
           const isCompleted = completedGoals.includes(goal.id);
+          const isEditing = editingId === goal.id;
+
           return (
             <div key={goal.id} className={`flex items-center justify-between p-5 rounded-2xl shadow-lg transition-all ${isCompleted ? 'bg-gray-200 opacity-60' : 'bg-[#3E7C7D] text-white'}`}>
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-4 flex-1">
                 <button onClick={() => handleToggle(goal.id)}>
                   {isCompleted ? <CheckCircle className="w-8 h-8 text-[#3E7C7D]" /> : <Circle className="w-8 h-8 opacity-80" />}
                 </button>
-                <span className={`text-xl font-medium ${isCompleted ? 'line-through text-gray-500' : ''}`}>{goal.title}</span>
+                
+                {isEditing ? (
+                  <input
+                    type="text"
+                    value={editTitle}
+                    onChange={(e) => setEditTitle(e.target.value)}
+                    className="bg-white text-black px-2 py-1 rounded-md w-full focus:outline-none"
+                    autoFocus
+                  />
+                ) : (
+                  <span className={`text-xl font-medium ${isCompleted ? 'line-through text-gray-500' : ''}`}>
+                    {goal.title}
+                  </span>
+                )}
               </div>
-              <button onClick={() => handleDelete(goal.id)} className="text-orange-200 hover:text-red-400 p-2">
-                <Trash2 size={20} />
-              </button>
+
+              <div className="flex items-center gap-1 ml-2">
+                {isEditing ? (
+                  <>
+                    <button onClick={() => handleUpdate(goal.id)} className="text-green-400 p-1">
+                      <Save size={20} />
+                    </button>
+                    <button onClick={() => setEditingId(null)} className="text-red-400 p-1">
+                      <X size={20} />
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button 
+                      onClick={() => {
+                        setEditingId(goal.id);
+                        setEditTitle(goal.title);
+                      }} 
+                      className="text-blue-200 hover:text-white p-1"
+                    >
+                      <Pencil size={18} />
+                    </button>
+                    <button onClick={() => handleDelete(goal.id)} className="text-orange-200 hover:text-red-400 p-1">
+                      <Trash2 size={20} />
+                    </button>
+                  </>
+                )}
+              </div>
             </div>
           );
         })}
       </div>
 
-      {/* ARCHIVE SECTION - Added the Toggle Button below */}
+      {/* ARCHIVE SECTION */}
       {archivedGoals.length > 0 && (
         <div className="mt-12 border-t-2 border-dashed border-gray-300 pt-6">
           <button 
@@ -157,11 +208,9 @@ export default function DailyPage({ userId }) {
                     >
                       <ArchiveRestore size={14} /> Restore
                     </button>
-                    
                     <button 
                       onClick={() => handlePermanentDelete(goal.id)}
                       className="p-1 text-gray-300 hover:text-red-500 transition-colors"
-                      title="Delete Forever"
                     >
                       <Trash2 size={16} />
                     </button>
