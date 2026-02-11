@@ -5,11 +5,30 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#F5E6CA" />
     <title>Journally | Retro Goal Tracking</title>
+    
     <link href="https://fonts.googleapis.com/css2?family=Lobster&family=Inter:wght@400;700&display=swap" rel="stylesheet">
+    
     <script src="https://cdn.tailwindcss.com"></script>
+    
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            colors: {
+              // You can add your brand colors here if you want to use them as Tailwind classes
+              brandTeal: '#3E7C7D',
+              brandOrange: '#D45D21',
+            }
+          }
+        }
+      }
+    </script>
   </head>
-  <body class="bg-[#F5E6CA]">
+  
+  <body class="bg-[#F5E6CA] dark:bg-gray-900 transition-colors duration-500">
     <noscript>You need to enable JavaScript to run this app.</noscript>
+    
     <div id="root"></div>
   </body>
 </html>
