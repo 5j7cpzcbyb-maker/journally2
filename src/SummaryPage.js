@@ -54,11 +54,15 @@ export default function SummaryPage({ userId }) {
     return "bg-[#3E7C7D]";                           
   };
 
-  // Helper to calculate the completion rate percentage
+  // Helper to calculate the completion rate percentage correctly
   const calculateCompletionRate = () => {
     if (goals.length === 0) return 0;
 
+    // FIX: Only count logs that exist within the 30-day window displayed
+    const logsInWindow = logs.filter(l => last30Days.includes(l.completed_at));
+
     if (selectedGoalId === 'all') {
+      // Calculate total potential checkmarks over 30 days
       const totalPotential = last30Days.reduce((acc, date) => {
         const activeOnDate = goals.filter(g => 
           date >= g.created_at.split('T')[0] && !g.is_deleted
@@ -66,20 +70,25 @@ export default function SummaryPage({ userId }) {
         return acc + activeOnDate;
       }, 0);
 
-      const totalActual = logs.length; 
+      const totalActual = logsInWindow.length; 
       
       if (totalPotential === 0) return 0;
-      return Math.round((totalActual / totalPotential) * 100);
+      // Cap at 100% to handle duplicate log data
+      return Math.min(Math.round((totalActual / totalPotential) * 100), 100);
+
     } else {
+      // Logic for a single habit
       const goal = goals.find(g => g.id === selectedGoalId);
       if (!goal) return 0;
 
       const creationDate = goal.created_at.split('T')[0];
       const potentialDays = last30Days.filter(date => date >= creationDate).length;
-      const actualCompletions = logs.filter(l => l.goal_id === selectedGoalId).length;
+      
+      // Filter logs for this specific goal AND within the 30-day window
+      const actualCompletions = logsInWindow.filter(l => l.goal_id === selectedGoalId).length;
 
       if (potentialDays === 0) return 0;
-      return Math.round((actualCompletions / potentialDays) * 100);
+      return Math.min(Math.round((actualCompletions / potentialDays) * 100), 100);
     }
   };
 
