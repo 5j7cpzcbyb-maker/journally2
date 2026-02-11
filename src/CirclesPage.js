@@ -16,13 +16,10 @@ export default function CirclesPage({ userId }) {
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(false);
   
-  // Creation/Join States
   const [isCreating, setIsCreating] = useState(false);
   const [isJoiningCode, setIsJoiningCode] = useState(false);
   const [newGroupName, setNewGroupName] = useState('');
   const [inputCode, setInputCode] = useState('');
-  
-  // Clipboard Feedback State
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
@@ -37,7 +34,7 @@ export default function CirclesPage({ userId }) {
   const handleCopyCode = (code) => {
     navigator.clipboard.writeText(code);
     setCopied(true);
-    setTimeout(() => setCopied(false), 2000); // Reset after 2 seconds
+    setTimeout(() => setCopied(false), 2000);
   };
 
   const handleCreateGroup = async () => {
@@ -53,9 +50,8 @@ export default function CirclesPage({ userId }) {
   const handleJoinByCode = async () => {
     if (!inputCode.trim()) return;
     const { data, error } = await joinGroupByCode(userId, inputCode);
-    if (error) {
-      alert(error);
-    } else {
+    if (error) alert(error);
+    else {
       setInputCode('');
       setIsJoiningCode(false);
       fetchGroups();
@@ -98,170 +94,149 @@ export default function CirclesPage({ userId }) {
     if (total === 0) return { backgroundColor: 'rgb(243, 244, 246)' };
     const percentage = completed / total;
     const alpha = 0.2 + (percentage * 0.8);
+    // Adjusting for dark mode readability
     return { backgroundColor: `rgba(62, 124, 125, ${alpha})` };
   };
 
   // VIEW 1: Leaderboard Detail
   if (selectedGroup) {
     return (
-      <div className="max-w-md mx-auto space-y-6 pb-32 px-4 mt-4">
-        <div className="flex justify-between items-center">
-          <button onClick={() => setSelectedGroup(null)} className="flex items-center text-[#3E7C7D] font-bold gap-1">
-            <ChevronLeft size={20} /> Back
-          </button>
-          
-          {selectedGroup.owner_id === userId ? (
-            <button onClick={(e) => handleDelete(e, selectedGroup.id)} className="text-red-400 flex items-center gap-1 text-xs font-bold uppercase">
-              <Trash2 size={14} /> Delete Circle
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-500 pb-32 px-4 pt-4">
+        <div className="max-w-md mx-auto space-y-6">
+          <div className="flex justify-between items-center">
+            <button onClick={() => setSelectedGroup(null)} className="flex items-center text-[#3E7C7D] dark:text-teal-400 font-bold gap-1">
+              <ChevronLeft size={20} /> Back
             </button>
-          ) : (
-            <button onClick={(e) => handleLeave(e, selectedGroup.id)} className="text-gray-400 flex items-center gap-1 text-xs font-bold uppercase">
-              <LogOut size={14} /> Leave
+            
+            {selectedGroup.owner_id === userId ? (
+              <button onClick={(e) => handleDelete(e, selectedGroup.id)} className="text-red-400 flex items-center gap-1 text-xs font-bold uppercase">
+                <Trash2 size={14} /> Delete Circle
+              </button>
+            ) : (
+              <button onClick={(e) => handleLeave(e, selectedGroup.id)} className="text-gray-400 flex items-center gap-1 text-xs font-bold uppercase">
+                <LogOut size={14} /> Leave
+              </button>
+            )}
+          </div>
+
+          <div className="text-center bg-white dark:bg-gray-800 p-6 rounded-3xl shadow-sm border-2 border-[#3E7C7D]/10 transition-colors">
+            <h2 className="text-3xl font-bold text-[#3E7C7D] dark:text-white">{selectedGroup.name}</h2>
+            <button 
+              onClick={() => handleCopyCode(selectedGroup.join_code)}
+              className="mt-3 inline-flex items-center gap-2 bg-gray-50 dark:bg-gray-900 hover:bg-gray-100 dark:hover:bg-gray-700 px-4 py-2 rounded-full transition-colors group"
+            >
+               <p className="text-[10px] font-black text-gray-500 dark:text-gray-400 uppercase tracking-widest">
+                 Invite Code: <span className="text-[#D45D21] ml-1">{selectedGroup.join_code}</span>
+               </p>
+               {copied ? <Check size={14} className="text-green-500" /> : <Copy size={14} className="text-gray-300" />}
             </button>
-          )}
-        </div>
+          </div>
 
-        <div className="text-center bg-white p-6 rounded-3xl shadow-sm border-2 border-[#3E7C7D]/10">
-          <h2 className="text-3xl font-bold text-[#3E7C7D]">{selectedGroup.name}</h2>
-          
-          {/* THE NEW COPY BUTTON COMPONENT */}
-          <button 
-            onClick={() => handleCopyCode(selectedGroup.join_code)}
-            className="mt-3 inline-flex items-center gap-2 bg-gray-50 hover:bg-gray-100 px-4 py-2 rounded-full transition-colors group"
-          >
-             <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest">
-               Invite Code: <span className="text-[#D45D21] ml-1">{selectedGroup.join_code}</span>
-             </p>
-             {copied ? (
-               <Check size={14} className="text-green-500 animate-bounce" />
-             ) : (
-               <Copy size={14} className="text-gray-300 group-hover:text-[#3E7C7D]" />
-             )}
-          </button>
-          
-          {copied && (
-            <p className="text-[9px] font-bold text-green-500 uppercase mt-1 animate-pulse">Copied to clipboard!</p>
-          )}
-        </div>
-
-        <div className="bg-white rounded-3xl shadow-xl border-b-8 border-[#D45D21] overflow-hidden">
-          <div className="divide-y divide-gray-50">
-            {members.map((member, index) => (
-              <div key={member.id} className="p-5 flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div 
-                    style={getMemberProgressStyle(member.completed_today, member.total_habits)}
-                    className="w-12 h-12 rounded-full border-2 border-white shadow-sm flex items-center justify-center text-white font-black"
-                  >
-                    {member.name.charAt(0)}
+          <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-xl border-b-8 border-[#D45D21] overflow-hidden transition-colors">
+            <div className="divide-y divide-gray-50 dark:divide-gray-700">
+              {members.map((member) => (
+                <div key={member.id} className="p-5 flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div 
+                      style={getMemberProgressStyle(member.completed_today, member.total_habits)}
+                      className="w-12 h-12 rounded-full border-2 border-white dark:border-gray-700 shadow-sm flex items-center justify-center text-white font-black"
+                    >
+                      {member.name.charAt(0)}
+                    </div>
+                    <div>
+                      <p className={`font-bold ${member.id === userId ? 'text-[#D45D21]' : 'text-gray-700 dark:text-gray-200'}`}>
+                        {member.name} {member.id === userId && "★"}
+                      </p>
+                      <p className="text-[10px] text-gray-400 font-bold uppercase tracking-tighter">
+                        {member.completed_today} / {member.total_habits} Done
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <p className={`font-bold ${member.id === userId ? 'text-[#D45D21]' : 'text-gray-700'}`}>
-                      {member.name} {member.id === userId && "★"}
-                    </p>
-                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-tighter">
-                      {member.completed_today} / {member.total_habits} Done
-                    </p>
-                  </div>
+                  <p className="text-lg font-black text-[#3E7C7D] dark:text-teal-400">
+                    {member.total_habits > 0 ? Math.round((member.completed_today / member.total_habits) * 100) : 0}%
+                  </p>
                 </div>
-                <p className="text-lg font-black text-[#3E7C7D]">
-                  {member.total_habits > 0 ? Math.round((member.completed_today / member.total_habits) * 100) : 0}%
-                </p>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </div>
       </div>
     );
   }
 
-  // VIEW 2: List View (Stay the same as previous)
+  // VIEW 2: List View
   return (
-    <div className="max-w-md mx-auto space-y-6 pb-32 px-4 mt-4">
-      {/* ... previous discovery view code ... */}
-      <div className="flex justify-between items-end">
-        <div>
-          <h2 className="text-3xl font-bold text-[#3E7C7D]">Circles</h2>
-          <p className="text-gray-500 text-sm font-medium">Find your community</p>
-        </div>
-        <div className="flex gap-2">
-          {!isJoiningCode && !isCreating && (
-            <button onClick={() => setIsJoiningCode(true)} className="bg-gray-100 text-[#3E7C7D] p-3 rounded-2xl">
-              <Key size={24} />
-            </button>
-          )}
-          {!isCreating && !isJoiningCode && (
-            <button onClick={() => setIsCreating(true)} className="bg-[#3E7C7D] text-white p-3 rounded-2xl">
-              <Plus size={24} />
-            </button>
-          )}
-        </div>
-      </div>
-
-      {isJoiningCode && (
-        <div className="bg-white p-4 rounded-2xl shadow-xl border-2 border-[#3E7C7D]">
-          <p className="text-[10px] font-black text-[#3E7C7D] uppercase mb-2 ml-1">Enter 6-Digit Code</p>
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-500 pb-32 px-4 pt-4">
+      <div className="max-w-md mx-auto space-y-6">
+        <div className="flex justify-between items-end">
+          <div>
+            <h2 className="text-3xl font-bold text-[#3E7C7D] dark:text-white">Circles</h2>
+            <p className="text-gray-500 dark:text-gray-400 text-sm font-medium">Find your community</p>
+          </div>
           <div className="flex gap-2">
-            <input 
-              autoFocus maxLength={6}
-              className="flex-1 bg-gray-50 p-3 rounded-xl font-bold uppercase"
-              placeholder="ABC123"
-              value={inputCode}
-              onChange={(e) => setInputCode(e.target.value)}
-            />
-            <button onClick={handleJoinByCode} className="bg-[#3E7C7D] text-white p-3 rounded-xl"><Check size={20} /></button>
-            <button onClick={() => setIsJoiningCode(false)} className="bg-gray-100 text-gray-400 p-3 rounded-xl"><X size={20} /></button>
+            {!isJoiningCode && !isCreating && (
+              <>
+                <button onClick={() => setIsJoiningCode(true)} className="bg-white dark:bg-gray-800 text-[#3E7C7D] dark:text-teal-400 p-3 rounded-2xl shadow-sm">
+                  <Key size={24} />
+                </button>
+                <button onClick={() => setIsCreating(true)} className="bg-[#3E7C7D] text-white p-3 rounded-2xl shadow-lg">
+                  <Plus size={24} />
+                </button>
+              </>
+            )}
           </div>
         </div>
-      )}
 
-      {isCreating && (
-        <div className="bg-white p-4 rounded-2xl shadow-xl border-2 border-[#D45D21]">
-          <p className="text-[10px] font-black text-[#D45D21] uppercase mb-2 ml-1">New Circle Name</p>
-          <div className="flex gap-2">
-            <input 
-              autoFocus
-              className="flex-1 bg-gray-50 p-3 rounded-xl font-bold"
-              placeholder="e.g. Yoga Squad"
-              value={newGroupName}
-              onChange={(e) => setNewGroupName(e.target.value)}
-            />
-            <button onClick={handleCreateGroup} className="bg-[#D45D21] text-white p-3 rounded-xl"><Check size={20} /></button>
-            <button onClick={() => setIsCreating(false)} className="bg-gray-100 text-gray-400 p-3 rounded-xl"><X size={20} /></button>
-          </div>
-        </div>
-      )}
-
-      <div className="grid gap-4">
-        {groups.map(group => (
-          <div
-            key={group.id}
-            onClick={() => handleSelectGroup(group)}
-            className={`bg-white p-5 rounded-2xl shadow-sm border-r-8 transition-all active:scale-95 ${
-              group.is_member ? 'border-[#3E7C7D] cursor-pointer' : 'border-gray-200 opacity-80'
-            }`}
-          >
-            <div className="flex justify-between items-center">
-              <div className="flex items-center gap-4">
-                <div className={`p-3 rounded-xl ${group.is_member ? 'bg-[#3E7C7D]/10 text-[#3E7C7D]' : 'bg-gray-100 text-gray-400'}`}>
-                  <Users size={20} />
-                </div>
-                <div>
-                  <p className="font-bold text-gray-800">{group.name}</p>
-                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{group.member_count} Members</p>
-                </div>
-              </div>
-              {!group.is_member ? (
-                <button 
-                  onClick={(e) => { e.stopPropagation(); handleJoinFromList(group.id); }}
-                  className="bg-[#D45D21] text-white px-4 py-2 rounded-lg text-xs font-black uppercase"
-                >Join</button>
-              ) : (
-                <div className="text-[10px] font-black text-[#3E7C7D] uppercase bg-[#3E7C7D]/5 px-2 py-1 rounded">Joined</div>
-              )}
+        {isJoiningCode && (
+          <div className="bg-white dark:bg-gray-800 p-4 rounded-2xl shadow-xl border-2 border-[#3E7C7D] transition-colors">
+            <p className="text-[10px] font-black text-[#3E7C7D] dark:text-teal-400 uppercase mb-2 ml-1">Enter 6-Digit Code</p>
+            <div className="flex gap-2">
+              <input autoFocus maxLength={6} className="flex-1 bg-gray-50 dark:bg-gray-900 dark:text-white p-3 rounded-xl font-bold uppercase outline-none" placeholder="ABC123" value={inputCode} onChange={(e) => setInputCode(e.target.value)} />
+              <button onClick={handleJoinByCode} className="bg-[#3E7C7D] text-white p-3 rounded-xl"><Check size={20} /></button>
+              <button onClick={() => setIsJoiningCode(false)} className="bg-gray-100 dark:bg-gray-700 text-gray-400 p-3 rounded-xl"><X size={20} /></button>
             </div>
           </div>
-        ))}
+        )}
+
+        {isCreating && (
+          <div className="bg-white dark:bg-gray-800 p-4 rounded-2xl shadow-xl border-2 border-[#D45D21] transition-colors">
+            <p className="text-[10px] font-black text-[#D45D21] uppercase mb-2 ml-1">New Circle Name</p>
+            <div className="flex gap-2">
+              <input autoFocus className="flex-1 bg-gray-50 dark:bg-gray-900 dark:text-white p-3 rounded-xl font-bold outline-none" placeholder="e.g. Yoga Squad" value={newGroupName} onChange={(e) => setNewGroupName(e.target.value)} />
+              <button onClick={handleCreateGroup} className="bg-[#D45D21] text-white p-3 rounded-xl"><Check size={20} /></button>
+              <button onClick={() => setIsCreating(false)} className="bg-gray-100 dark:bg-gray-700 text-gray-400 p-3 rounded-xl"><X size={20} /></button>
+            </div>
+          </div>
+        )}
+
+        <div className="grid gap-4">
+          {groups.map(group => (
+            <div
+              key={group.id}
+              onClick={() => handleSelectGroup(group)}
+              className={`bg-white dark:bg-gray-800 p-5 rounded-2xl shadow-sm border-r-8 transition-all active:scale-95 ${
+                group.is_member ? 'border-[#3E7C7D] cursor-pointer' : 'border-gray-200 dark:border-gray-700 opacity-80'
+              }`}
+            >
+              <div className="flex justify-between items-center">
+                <div className="flex items-center gap-4">
+                  <div className={`p-3 rounded-xl ${group.is_member ? 'bg-[#3E7C7D]/10 dark:bg-teal-900/30 text-[#3E7C7D] dark:text-teal-400' : 'bg-gray-100 dark:bg-gray-900 text-gray-400'}`}>
+                    <Users size={20} />
+                  </div>
+                  <div>
+                    <p className="font-bold text-gray-800 dark:text-white">{group.name}</p>
+                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{group.member_count} Members</p>
+                  </div>
+                </div>
+                {!group.is_member ? (
+                  <button onClick={(e) => { e.stopPropagation(); handleJoinFromList(group.id); }} className="bg-[#D45D21] text-white px-4 py-2 rounded-lg text-xs font-black uppercase">Join</button>
+                ) : (
+                  <div className="text-[10px] font-black text-[#3E7C7D] dark:text-teal-400 uppercase bg-[#3E7C7D]/5 dark:bg-teal-900/20 px-2 py-1 rounded">Joined</div>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
