@@ -246,3 +246,74 @@ export const getMyGroups = async (userId) => {
   return { data, error };
 };
 
+// ... keep your existing getAllGoalsHistory and getGoalLogs ...
+
+export const getGroups = async (userId) => {
+  // Fetch groups and check if the current user is a member
+  const { data, error } = await supabase
+    .from('groups')
+    .select(`
+      *,
+      group_members!inner(user_id)
+    `);
+
+  // Transform data to identify membership and member count
+  const formattedData = data?.map(group => ({
+    ...group,
+    is_member: group.group_members.some(m => m.user_id === userId),
+    member_count: group.group_members.length
+  }));
+
+  return { data: formattedData, error };
+};
+
+export const getGroupMembers = async (groupId) => {
+  // This fetches members and their goal completion stats for today
+  const today = new Date().toISOString().split('T')[0];
+  
+  const { data, error } = await supabase
+    .from('group_members')
+    .select(`
+      user_id,
+      profiles(name),
+      goals(id, title, is_deleted),
+      goal_logs(id, completed_at, goal_id)
+    `)
+    .eq('group_id', groupId);
+
+  // Calculate progress for each member
+  const membersWithStats = data?.map(member => {
+    const activeGoals = member.goals.filter(g => !g.is_deleted);
+    const completionsToday = member.goal_logs.filter(l => l.completed_at === today);
+    
+    return {
+      id: member.user_id,
+      name: member.profiles.name,
+      total_habits: activeGoals.length,
+      completed_today: completionsToday.length
+    };
+  });
+
+  return { data: membersWithStats, error };
+};
+
+export const joinGroup = async (groupId, userId) => {
+  return await supabase
+    .from('group_members')
+    .insert([{ group_id: groupId, user_id: userId }]);
+};
+
+export const leaveGroup = async (groupId, userId) => {
+  return await supabase
+    .from('group_members')
+    .delete()
+    .match({ group_id: groupId, user_id: userId });
+};
+
+export const deleteGroup = async (groupId, userId) => {
+  // Ensure the user is the owner before deleting
+  return await supabase
+    .from('groups')
+    .delete()
+    .match({ id: groupId, owner_id: userId });
+};
