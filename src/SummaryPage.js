@@ -96,15 +96,63 @@ export default function SummaryPage({ userId }) {
       </div>
 
       {/* MOTIVATION STAT */}
-      <div className="bg-[#D45D21] text-white p-6 rounded-2xl shadow-lg text-center">
-        <p className="text-sm opacity-80 uppercase tracking-widest">
-          {selectedGoalId === 'all' ? 'Total Life Completions' : 'Habit Milestone'}
+      // Helper to calculate the completion rate for the selected view
+  const calculateCompletionRate = () => {
+    const daysCount = 30;
+    
+    if (selectedGoalId === 'all') {
+      // Calculate total potential checkmarks over 30 days
+      // We only count days since each habit was actually created
+      const totalPotential = last30Days.reduce((acc, date) => {
+        const activeOnDate = goals.filter(g => 
+          date >= g.created_at.split('T')[0] && !g.is_deleted
+        ).length;
+        return acc + activeOnDate;
+      }, 0);
+
+      const totalActual = logs.length; // All logs in history
+      
+      if (totalPotential === 0) return 0;
+      return Math.round((totalActual / totalPotential) * 100);
+    } else {
+      // Calculate potential for a single specific habit
+      const goal = goals.find(g => g.id === selectedGoalId);
+      if (!goal) return 0;
+
+      const creationDate = goal.created_at.split('T')[0];
+      const potentialDays = last30Days.filter(date => date >= creationDate).length;
+      const actualCompletions = logs.filter(l => l.goal_id === selectedGoalId).length;
+
+      if (potentialDays === 0) return 0;
+      return Math.round((actualCompletions / potentialDays) * 100);
+    }
+  };
+
+  const completionRate = calculateCompletionRate();
+
+  return (
+    <div className="max-w-md mx-auto space-y-8">
+      {/* ... previous Header and Grid code ... */}
+
+      {/* UPDATED MOTIVATION STAT */}
+      <div className="bg-[#D45D21] text-white p-6 rounded-2xl shadow-lg text-center relative overflow-hidden">
+        {/* Subtle background icon for flare */}
+        <div className="absolute -right-4 -bottom-4 opacity-10 rotate-12">
+          <CheckCircle2 size={120} />
+        </div>
+        
+        <p className="text-sm opacity-80 uppercase tracking-widest font-bold">
+          {selectedGoalId === 'all' ? 'Overall Success Rate' : 'Habit Consistency'}
         </p>
-        <p className="text-5xl font-bold">
-          {selectedGoalId === 'all' 
-            ? logs.length 
-            : logs.filter(l => l.goal_id === selectedGoalId).length
-          }
+        
+        <div className="flex items-center justify-center gap-2">
+          <p className="text-6xl font-black">{completionRate}%</p>
+        </div>
+
+        <p className="mt-2 text-xs italic opacity-90">
+          {completionRate >= 80 ? "You're crushing it! 🔥" : 
+           completionRate >= 50 ? "Halfway there, keep it up! 👍" : 
+           "Every small step counts. Let's grow! 🌱"}
         </p>
       </div>
     </div>
