@@ -1,93 +1,137 @@
 import React, { useState, useEffect } from 'react';
-import { Users, UserPlus, Copy, Check } from 'lucide-react';
-import { createGroup, joinGroup, getMyGroups } from './api';
+import { ChevronLeft, Users, Trophy } from 'lucide-react';
+import { getGroups, getGroupMembers, getMemberLogsToday } from './api';
 
 export default function CirclesPage({ userId }) {
   const [groups, setGroups] = useState([]);
-  const [newGroupName, setNewGroupName] = useState('');
-  const [joinCodeInput, setJoinCodeInput] = useState('');
-  const [copied, setCopied] = useState(null);
+  const [selectedGroup, setSelectedGroup] = useState(null);
+  const [members, setMembers] = useState([]);
+  const [loading, setLoading] = useState(false);
 
+  // Fetch groups on mount
   useEffect(() => {
-    loadGroups();
+    const fetchGroups = async () => {
+      const { data } = await getGroups(userId);
+      setGroups(data || []);
+    };
+    fetchGroups();
   }, [userId]);
 
-  const loadGroups = async () => {
-    const { data } = await getMyGroups(userId);
-    setGroups(data || []);
+  // Fetch member progress when a group is selected
+  const handleSelectGroup = async (group) => {
+    setLoading(true);
+    setSelectedGroup(group);
+    
+    // Fetch members and their activity for today
+    const { data: memberData } = await getGroupMembers(group.id);
+    setMembers(memberData || []);
+    setLoading(false);
   };
 
-  const handleCreate = async (e) => {
-    e.preventDefault();
-    if (!newGroupName) return;
-    await createGroup(userId, newGroupName);
-    setNewGroupName('');
-    loadGroups();
+  // Dynamic style helper (reusing your Summary logic)
+  const getMemberProgressStyle = (completed, total) => {
+    if (total === 0) return { backgroundColor: 'rgb(243, 244, 246)' };
+    const percentage = completed / total;
+    const alpha = 0.2 + (percentage * 0.8);
+    return { backgroundColor: `rgba(62, 124, 125, ${alpha})` };
   };
 
-  const handleJoin = async (e) => {
-    e.preventDefault();
-    const { error } = await joinGroup(userId, joinCodeInput.toUpperCase());
-    if (error) alert(error);
-    else {
-      setJoinCodeInput('');
-      loadGroups();
-    }
-  };
+  // VIEW 1: Group Detail / Leaderboard
+  if (selectedGroup) {
+    return (
+      <div className="max-w-md mx-auto space-y-6 pb-32 px-4">
+        <button 
+          onClick={() => setSelectedGroup(null)}
+          className="flex items-center text-[#3E7C7D] font-bold gap-1"
+        >
+          <ChevronLeft size={20} /> Back to Circles
+        </button>
 
-  const copyToClipboard = (code) => {
-    navigator.clipboard.writeText(code);
-    setCopied(code);
-    setTimeout(() => setCopied(null), 2000);
-  };
+        <div className="text-center space-y-2">
+          <h2 className="text-3xl font-bold text-[#3E7C7D]">{selectedGroup.name}</h2>
+          <p className="text-gray-500 text-sm font-medium uppercase tracking-widest">Daily Progress Leaderboard</p>
+        </div>
 
-  return (
-    <div className="max-w-md mx-auto space-y-8 pb-20">
-      <h2 className="text-3xl font-bold text-[#3E7C7D] text-center">Your Circles</h2>
+        <div className="bg-white rounded-3xl shadow-xl border-b-8 border-[#D45D21] overflow-hidden">
+          {loading ? (
+            <div className="p-10 text-center text-gray-400 font-bold">Loading Squad...</div>
+          ) : (
+            <div className="divide-y divide-gray-100">
+              {members.map((member, index) => {
+                const isUser = member.id === userId;
+                return (
+                  <div key={member.id} className="p-5 flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <span className="text-xs font-black text-gray-300 w-4">{index + 1}</span>
+                      <div className="relative">
+                        {/* THE DYNAMIC PROGRESS GRAPHIC */}
+                        <div 
+                          style={getMemberProgressStyle(member.completed_today, member.total_habits)}
+                          className="w-12 h-12 rounded-full border-2 border-white shadow-sm flex items-center justify-center text-white font-bold transition-all duration-1000"
+                        >
+                          {member.name.charAt(0)}
+                        </div>
+                        {member.completed_today === member.total_habits && (
+                          <div className="absolute -top-1 -right-1 bg-yellow-400 rounded-full p-1 shadow-sm">
+                            <Trophy size={10} className="text-white" />
+                          </div>
+                        )}
+                      </div>
+                      <div>
+                        <p className={`font-bold ${isUser ? 'text-[#D45D21]' : 'text-gray-700'}`}>
+                          {member.name} {isUser && "(You)"}
+                        </p>
+                        <p className="text-[10px] text-gray-400 font-bold uppercase">
+                          {member.completed_today} / {member.total_habits} Tasks Done
+                        </p>
+                      </div>
+                    </div>
 
-      {/* CREATE A CIRCLE */}
-      <div className="bg-white p-6 rounded-3xl shadow-xl border-t-8 border-[#3E7C7D]">
-        <h3 className="font-bold mb-4 flex items-center gap-2"><Users size={20}/> Start a New Circle</h3>
-        <form onSubmit={handleCreate} className="flex gap-2">
-          <input 
-            className="flex-1 p-3 rounded-xl border-2 border-gray-100 outline-none focus:border-[#3E7C7D]"
-            placeholder="Circle Name (e.g. Family)"
-            value={newGroupName}
-            onChange={(e) => setNewGroupName(e.target.value)}
-          />
-          <button type="submit" className="bg-[#3E7C7D] text-white px-4 rounded-xl font-bold">Create</button>
-        </form>
-      </div>
-
-      {/* JOIN A CIRCLE */}
-      <div className="bg-white p-6 rounded-3xl shadow-xl border-t-8 border-[#D45D21]">
-        <h3 className="font-bold mb-4 flex items-center gap-2"><UserPlus size={20}/> Join with Code</h3>
-        <form onSubmit={handleJoin} className="flex gap-2">
-          <input 
-            className="flex-1 p-3 rounded-xl border-2 border-gray-100 outline-none focus:border-[#D45D21]"
-            placeholder="6-Digit Code"
-            value={joinCodeInput}
-            onChange={(e) => setJoinCodeInput(e.target.value)}
-          />
-          <button type="submit" className="bg-[#D45D21] text-white px-4 rounded-xl font-bold">Join</button>
-        </form>
-      </div>
-
-      {/* LIST OF MY CIRCLES */}
-      <div className="space-y-4">
-        {groups.map((item) => (
-          <div key={item.group_id} className="bg-white p-5 rounded-2xl shadow-md border-l-8 border-[#3E7C7D] flex justify-between items-center">
-            <div>
-              <p className="font-bold text-lg text-gray-800">{item.groups?.name}</p>
-              <p className="text-sm text-gray-400">Code: <span className="font-mono font-bold text-[#D45D21]">{item.groups?.join_code}</span></p>
+                    <div className="text-right">
+                      <p className="text-lg font-black text-[#3E7C7D]">
+                        {member.total_habits > 0 
+                          ? Math.round((member.completed_today / member.total_habits) * 100) 
+                          : 0}%
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-            <button 
-              onClick={() => copyToClipboard(item.groups?.join_code)}
-              className="p-2 bg-gray-50 rounded-lg hover:bg-gray-100"
-            >
-              {copied === item.groups?.join_code ? <Check size={18} className="text-green-600"/> : <Copy size={18} className="text-gray-400"/>}
-            </button>
-          </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // VIEW 2: List of Circles
+  return (
+    <div className="max-w-md mx-auto space-y-8 pb-32 px-4">
+      <div className="text-center">
+        <h2 className="text-3xl font-bold text-[#3E7C7D] mb-2">Your Circles</h2>
+        <p className="text-gray-500 font-medium">Connect with your community</p>
+      </div>
+
+      <div className="grid gap-4">
+        {groups.map(group => (
+          <button
+            key={group.id}
+            onClick={() => handleSelectGroup(group)}
+            className="bg-white p-6 rounded-2xl shadow-md border-r-8 border-[#3E7C7D] flex items-center justify-between hover:scale-[1.02] transition-transform active:scale-95"
+          >
+            <div className="flex items-center gap-4">
+              <div className="bg-[#3E7C7D]/10 p-3 rounded-xl text-[#3E7C7D]">
+                <Users size={24} />
+              </div>
+              <div className="text-left">
+                <p className="font-bold text-gray-800 text-lg">{group.name}</p>
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">{group.member_count} Members</p>
+              </div>
+            </div>
+            <div className="bg-gray-50 px-3 py-1 rounded-full text-[10px] font-black text-gray-400 uppercase">
+              View Squad
+            </div>
+          </button>
         ))}
       </div>
     </div>
