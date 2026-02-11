@@ -128,6 +128,15 @@ export const deleteGoal = async (goalId) => {
   return { error };
 };
 
+// PERMANENTLY DELETE A GOAL
+export const permanentDeleteGoal = async (goalId) => {
+  const { error } = await supabase
+    .from('goals')
+    .delete()
+    .eq('id', goalId);
+  return { error };
+};
+
 // --- SUMMARY & HISTORY ---
 
 // 1. FETCH ALL GOALS (Including Ghosts)
