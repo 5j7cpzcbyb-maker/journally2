@@ -1,13 +1,16 @@
 import { supabase } from './supabaseClient.js';
 
-// --- AUTHENTICATION ---
+// --- 1. AUTHENTICATION ---
 
 export const signUpUser = async (email, password, firstName, lastName) => {
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
     options: {
-      data: { first_name: firstName, last_name: lastName },
+      data: {
+        first_name: firstName,
+        last_name: lastName,
+      },
     },
   });
   return { data, error };
@@ -29,7 +32,7 @@ export const getUserProfile = async (userId) => {
     .single();
 };
 
-// --- GOALS (DAILY PAGE) ---
+// --- 2. DAILY GOALS ---
 
 export const addGoal = async (userId, title) => {
   return await supabase
@@ -51,6 +54,29 @@ export const updateGoalTitle = async (goalId, newTitle) => {
   return await supabase.from('goals').update({ title: newTitle }).eq('id', goalId);
 };
 
+export const toggleGoalCheck = async (userId, goalId, dateStr) => {
+  const { data: existingLog } = await supabase
+    .from('goal_logs')
+    .select('*')
+    .eq('goal_id', goalId)
+    .eq('completed_at', dateStr)
+    .maybeSingle();
+
+  if (existingLog) {
+    const { error } = await supabase.from('goal_logs').delete().eq('id', existingLog.id);
+    return { status: 'unchecked', error };
+  } else {
+    const { error } = await supabase.from('goal_logs').insert([
+      { user_id: userId, goal_id: goalId, completed_at: dateStr, status: true }
+    ]);
+    return { status: 'checked', error };
+  }
+};
+
+export const restoreGoal = async (goalId) => {
+  return await supabase.from('goals').update({ is_deleted: false }).eq('id', goalId);
+};
+
 export const deleteGoal = async (goalId) => {
   return await supabase.from('goals').update({ is_deleted: true }).eq('id', goalId);
 };
@@ -60,7 +86,7 @@ export const permanentDeleteGoal = async (goalId) => {
   return await supabase.from('goals').delete().eq('id', goalId);
 };
 
-// --- SUMMARY & HISTORY ---
+// --- 3. SUMMARY & HISTORY ---
 
 export const getAllGoalsHistory = async (userId) => {
   return await supabase.from('goals').select('*').eq('user_id', userId);
@@ -70,13 +96,12 @@ export const getGoalLogs = async (userId) => {
   return await supabase.from('goal_logs').select('goal_id, completed_at').eq('user_id', userId);
 };
 
-// --- CIRCLES (GROUPS) ---
+// --- 4. CIRCLES (GROUPS) ---
 
 const generateJoinCode = () => Math.random().toString(36).substring(2, 8).toUpperCase();
 
 export const createGroup = async (userId, groupName) => {
   const joinCode = generateJoinCode();
-  // Using 'owner_id' to match the deleteGroup logic
   const { data: groupData, error: groupError } = await supabase
     .from('groups')
     .insert([{ name: groupName, owner_id: userId, join_code: joinCode }])
@@ -89,14 +114,7 @@ export const createGroup = async (userId, groupName) => {
   return { data: groupData, error: null };
 };
 
-// Joined direct from the "Join" button in the list
-export const joinGroup = async (groupId, userId) => {
-  return await supabase
-    .from('group_members')
-    .insert([{ group_id: groupId, user_id: userId }]);
-};
-
-// Joined via the 6-digit text code
+// Renamed to avoid duplication conflict
 export const joinGroupByCode = async (userId, codeInput) => {
   const { data: group, error: searchError } = await supabase
     .from('groups')
@@ -111,6 +129,13 @@ export const joinGroupByCode = async (userId, codeInput) => {
     .insert([{ group_id: group.id, user_id: userId }]);
 
   return { data: group, error: joinError };
+};
+
+// This is the one used by your "Join" button in the list
+export const joinGroup = async (groupId, userId) => {
+  return await supabase
+    .from('group_members')
+    .insert([{ group_id: groupId, user_id: userId }]);
 };
 
 export const getGroups = async (userId) => {
@@ -143,18 +168,15 @@ export const getGroupMembers = async (groupId) => {
 
   if (error) return { data: null, error };
 
-  const membersWithStats = data.map(member => {
-    const activeGoals = member.goals?.filter(g => !g.is_deleted) || [];
-    const completionsToday = member.goal_logs?.filter(l => l.completed_at === today) || [];
-    return {
+  return {
+    data: data.map(member => ({
       id: member.user_id,
       name: member.profiles?.name || "Anonymous",
-      total_habits: activeGoals.length,
-      completed_today: completionsToday.length
-    };
-  });
-
-  return { data: membersWithStats, error: null };
+      total_habits: member.goals?.filter(g => !g.is_deleted).length || 0,
+      completed_today: member.goal_logs?.filter(l => l.completed_at === today).length || 0
+    })),
+    error: null
+  };
 };
 
 export const leaveGroup = async (groupId, userId) => {
