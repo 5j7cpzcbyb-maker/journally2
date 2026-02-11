@@ -130,10 +130,18 @@ export const deleteGoal = async (goalId) => {
 
 // PERMANENTLY DELETE A GOAL
 export const permanentDeleteGoal = async (goalId) => {
+  // 1. First, wipe out all history/logs for this goal
+  await supabase
+    .from('goal_logs')
+    .delete()
+    .eq('goal_id', goalId);
+
+  // 2. Now that the logs are gone, we can safely delete the goal itself
   const { error } = await supabase
     .from('goals')
     .delete()
     .eq('id', goalId);
+
   return { error };
 };
 
