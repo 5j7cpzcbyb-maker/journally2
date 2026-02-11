@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from './supabaseClient';
 import DailyPage from './DailyPage';
-import Auth from './Auth'; // Import the new Auth component
+import Auth from './Auth'; 
+import SummaryPage from './SummaryPage'; // Ensure this is imported!
 
 export default function App() {
   const [currentPage, setCurrentPage] = useState('Daily');
@@ -26,7 +27,6 @@ export default function App() {
     font: "'Lobster', cursive"
   };
 
-  // IF NOT LOGGED IN: Show only the Auth screen
   if (!user) {
     return (
       <div className={`min-h-screen ${retroTheme.background} p-4`}>
@@ -38,7 +38,6 @@ export default function App() {
     );
   }
 
-  // IF LOGGED IN: Show the main app
   return (
     <div className={`min-h-screen ${retroTheme.background} text-gray-800`}>
       <header className="pt-10 pb-6 text-center">
@@ -58,24 +57,63 @@ export default function App() {
 
       <main className="px-4 pb-32">
         <AnimatePresence mode="wait">
+          {/* DAILY PAGE LOGIC */}
           {currentPage === 'Daily' && (
-            <motion.div key="daily" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+            <motion.div 
+              key="daily" 
+              initial={{ opacity: 0, x: -20 }} 
+              animate={{ opacity: 1, x: 0 }} 
+              exit={{ opacity: 0, x: 20 }}
+            >
               <DailyPage userId={user.id} />
             </motion.div>
           )}
-          {/* Add Summary and Circles components here later */}
+
+          {/* SUMMARY PAGE LOGIC - This is where the new code goes! */}
+          {currentPage === 'Summary' && (
+            <motion.div 
+              key="summary" 
+              initial={{ opacity: 0, x: -20 }} 
+              animate={{ opacity: 1, x: 0 }} 
+              exit={{ opacity: 0, x: 20 }}
+            >
+              <SummaryPage userId={user.id} />
+            </motion.div>
+          )}
+
+          {/* CIRCLES PLACEHOLDER */}
+          {currentPage === 'Circles' && (
+            <motion.div key="circles" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+              <div className="text-center p-10 bg-white rounded-3xl shadow-xl">
+                <h2 className="text-2xl font-bold text-[#3E7C7D]">Circles Coming Soon!</h2>
+              </div>
+            </motion.div>
+          )}
         </AnimatePresence>
       </main>
 
+      {/* NAVIGATION */}
       <nav className="fixed bottom-0 w-full bg-white border-t-2 border-gray-200 flex justify-around items-center h-20 px-4">
-        <button onClick={() => setCurrentPage('Summary')}>Summary</button>
+        <button 
+          onClick={() => setCurrentPage('Summary')}
+          className={currentPage === 'Summary' ? 'text-[#D45D21] font-bold' : 'text-gray-400'}
+        >
+          Summary
+        </button>
+        
         <button 
           onClick={() => setCurrentPage('Daily')}
           className="bg-[#D45D21] text-white w-20 h-20 rounded-full -translate-y-6 border-8 border-[#F5E6CA] shadow-2xl flex items-center justify-center font-bold"
         >
           Daily
         </button>
-        <button onClick={() => setCurrentPage('Circles')}>Circles</button>
+
+        <button 
+          onClick={() => setCurrentPage('Circles')}
+          className={currentPage === 'Circles' ? 'text-[#D45D21] font-bold' : 'text-gray-400'}
+        >
+          Circles
+        </button>
       </nav>
     </div>
   );
