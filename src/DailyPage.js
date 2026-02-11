@@ -64,6 +64,14 @@ export default function DailyPage({ userId }) {
     loadGoals();
   };
 
+  const handlePermanentDelete = async (goalId) => {
+    if (window.confirm("This will permanently wipe this habit and all its history. This cannot be undone. Proceed?")) {
+      const { error } = await permanentDeleteGoal(goalId);
+      if (error) alert(error.message);
+      loadGoals();
+    }
+  };
+
   const changeDate = (days) => {
     const newDate = new Date(selectedDate);
     newDate.setDate(newDate.getDate() + days);
@@ -120,31 +128,31 @@ export default function DailyPage({ userId }) {
       </div>
 
       {/* ARCHIVE SECTION */}
-      {archivedGoals.length > 0 && (
-        <div className="mt-12 border-t-2 border-dashed border-gray-300 pt-6">
-          <button 
-            onClick={() => setShowArchive(!showArchive)}
-            className="flex items-center gap-2 text-gray-400 font-bold uppercase tracking-widest text-xs hover:text-[#3E7C7D] transition-colors"
-          >
-            {showArchive ? <ChevronUp size={16}/> : <ChevronDown size={16}/>}
-            {showArchive ? 'Hide Archive' : `Show Archive (${archivedGoals.length})`}
-          </button>
-
-          {showArchive && (
-            <div className="mt-4 space-y-2">
-              {archivedGoals.map((goal) => (
-                <div key={goal.id} className="flex items-center justify-between bg-white/50 p-3 rounded-xl border border-gray-200 text-gray-400 italic">
-                  <span>{goal.title}</span>
-                  <button 
-                    onClick={() => handleRestore(goal.id)}
-                    className="flex items-center gap-1 text-xs bg-gray-100 px-3 py-1 rounded-full hover:bg-[#3E7C7D] hover:text-white transition-all"
-                  >
-                    <ArchiveRestore size={14} /> Restore
-                  </button>
-                </div>
-              ))}
+      {showArchive && (
+        <div className="mt-4 space-y-2">
+          {archivedGoals.map((goal) => (
+            <div key={goal.id} className="flex items-center justify-between bg-white/50 p-3 rounded-xl border border-gray-200 text-gray-400 italic">
+              <span>{goal.title}</span>
+              <div className="flex gap-2">
+                {/* Restore Button */}
+                <button 
+                  onClick={() => handleRestore(goal.id)}
+                  className="flex items-center gap-1 text-xs bg-gray-100 px-3 py-1 rounded-full hover:bg-[#3E7C7D] hover:text-white transition-all"
+                >
+                  <ArchiveRestore size={14} /> Restore
+                </button>
+                
+                {/* Permanent Delete Button */}
+                <button 
+                  onClick={() => handlePermanentDelete(goal.id)}
+                  className="p-1 text-gray-300 hover:text-red-500 transition-colors"
+                  title="Delete Forever"
+                >
+                  <Trash2 size={16} />
+                </button>
+              </div>
             </div>
-          )}
+          ))}
         </div>
       )}
     </div>
