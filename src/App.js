@@ -4,6 +4,7 @@ import { supabase } from './supabaseClient';
 import DailyPage from './DailyPage';
 import Auth from './Auth'; 
 import SummaryPage from './SummaryPage'; // Ensure this is imported!
+import CirclesPage from './CirclesPage';
 
 export default function App() {
   const [currentPage, setCurrentPage] = useState('Daily');
@@ -81,14 +82,18 @@ export default function App() {
             </motion.div>
           )}
 
-          {/* CIRCLES PLACEHOLDER */}
+          {/* CIRCLES PAGE LOGIC */}
           {currentPage === 'Circles' && (
-            <motion.div key="circles" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-              <div className="text-center p-10 bg-white rounded-3xl shadow-xl">
-                <h2 className="text-2xl font-bold text-[#3E7C7D]">Circles Coming Soon!</h2>
-              </div>
+            <motion.div 
+              key="circles" 
+              initial={{ opacity: 0, x: 20 }} 
+              animate={{ opacity: 1, x: 0 }} 
+              exit={{ opacity: 0, x: -20 }}
+            >
+              <CirclesPage userId={user.id} />
             </motion.div>
           )}
+            
         </AnimatePresence>
       </main>
 
