@@ -1,5 +1,5 @@
 // --- AUTHENTICATION ---
-import { supabase } from './supabaseClient';
+import { supabase } from './supabaseClient.js';
 // 1. SIGN UP
 // "metaData" passes the First/Last name to Supabase so our Trigger can save it.
 export const signUpUser = async (email, password, firstName, lastName) => {
