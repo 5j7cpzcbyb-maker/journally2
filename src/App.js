@@ -1,16 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { LayoutGrid, CheckCircle2, Users2 } from 'lucide-react'; // Icons for the new nav
 import { supabase } from './supabaseClient';
 import DailyPage from './DailyPage';
 import Auth from './Auth'; 
-import SummaryPage from './SummaryPage'; // Ensure this is imported!
+import SummaryPage from './SummaryPage';
 import CirclesPage from './CirclesPage';
 import SettingsPage from './SettingsPage';
 
 export default function App() {
   const [currentPage, setCurrentPage] = useState('Daily');
   const [user, setUser] = useState(null);
-  const [showMenu, setShowMenu] = useState(false); // Controls if the dropdown is open
+  const [showMenu, setShowMenu] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -40,6 +41,13 @@ export default function App() {
       </div>
     );
   }
+
+  // Define navigation items for the professional bar
+  const navItems = [
+    { id: 'Summary', label: 'Summary', icon: LayoutGrid },
+    { id: 'Daily', label: 'Daily', icon: CheckCircle2, isCenter: true },
+    { id: 'Circles', label: 'Circles', icon: Users2 },
+  ];
 
   return (
     <div className={`min-h-screen ${retroTheme.background} text-gray-800`}>
@@ -82,9 +90,9 @@ export default function App() {
         )}
       </header>
 
-      <main className="px-4 pb-32">
+      {/* Added more bottom padding (pb-40) so content doesn't get hidden by the floating bar */}
+      <main className="px-4 pb-40">
         <AnimatePresence mode="wait">
-          {/* DAILY PAGE LOGIC */}
           {currentPage === 'Daily' && (
             <motion.div 
               key="daily" 
@@ -96,7 +104,6 @@ export default function App() {
             </motion.div>
           )}
 
-          {/* SUMMARY PAGE LOGIC - This is where the new code goes! */}
           {currentPage === 'Summary' && (
             <motion.div 
               key="summary" 
@@ -108,7 +115,6 @@ export default function App() {
             </motion.div>
           )}
 
-          {/* CIRCLES PAGE LOGIC */}
           {currentPage === 'Circles' && (
             <motion.div 
               key="circles" 
@@ -120,8 +126,6 @@ export default function App() {
             </motion.div>
           )}
 
-
-          {/* SETTINGS PAGE LOGIC */}
           {currentPage === 'Settings' && (
             <motion.div 
               key="settings" 
@@ -132,33 +136,45 @@ export default function App() {
               <SettingsPage userId={user.id} />
             </motion.div>
           )}
-            
         </AnimatePresence>
       </main>
 
-      {/* NAVIGATION */}
-      <nav className="fixed bottom-0 w-full bg-white border-t-2 border-gray-200 flex justify-around items-center h-20 px-4">
-        <button 
-          onClick={() => setCurrentPage('Summary')}
-          className={currentPage === 'Summary' ? 'text-[#D45D21] font-bold' : 'text-gray-400'}
-        >
-          Summary
-        </button>
-        
-        <button 
-          onClick={() => setCurrentPage('Daily')}
-          className="bg-[#D45D21] text-white w-20 h-20 rounded-full -translate-y-6 border-8 border-[#F5E6CA] shadow-2xl flex items-center justify-center font-bold"
-        >
-          Daily
-        </button>
+      {/* MODERN FLOATING NAVIGATION */}
+      <div className="fixed bottom-6 left-0 right-0 px-4 z-50">
+        <nav className="max-w-md mx-auto bg-white/90 backdrop-blur-md border border-white/20 shadow-2xl rounded-[2.5rem] flex items-center justify-around p-2 h-20">
+          {navItems.map((item) => {
+            const Icon = item.icon;
+            const isActive = currentPage === item.id;
 
-        <button 
-          onClick={() => setCurrentPage('Circles')}
-          className={currentPage === 'Circles' ? 'text-[#D45D21] font-bold' : 'text-gray-400'}
-        >
-          Circles
-        </button>
-      </nav>
+            if (item.isCenter) {
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => setCurrentPage(item.id)}
+                  className="relative -top-8 bg-[#D45D21] text-white p-5 rounded-full shadow-[0_10px_25px_rgba(212,93,33,0.5)] hover:scale-110 active:scale-95 transition-all duration-300 border-4 border-[#F5E6CA]"
+                >
+                  <Icon size={32} strokeWidth={2.5} />
+                </button>
+              );
+            }
+
+            return (
+              <button
+                key={item.id}
+                onClick={() => setCurrentPage(item.id)}
+                className={`flex flex-col items-center gap-1 px-6 transition-all duration-300 ${
+                  isActive ? 'text-[#3E7C7D] scale-110' : 'text-gray-400 hover:text-[#3E7C7D]'
+                }`}
+              >
+                <Icon size={24} strokeWidth={isActive ? 3 : 2} />
+                <span className="text-[10px] font-bold uppercase tracking-widest">
+                  {item.label}
+                </span>
+              </button>
+            );
+          })}
+        </nav>
+      </div>
     </div>
   );
 }
