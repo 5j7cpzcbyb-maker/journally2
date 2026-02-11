@@ -106,9 +106,8 @@ export default function SummaryPage({ userId }) {
           ))}
         </div>
         
-        <div className="mt-8 space-y-3 border-t pt-4">
-          <p className="text-[10px] font-black uppercase tracking-tighter text-gray-400">Activity Key</p>
-          <div className="flex flex-wrap gap-x-4 gap-y-2">
+        {/* CLEAN MINIMAL LEGEND */}
+        <div className="mt-6 flex flex-wrap justify-center gap-x-4 gap-y-2">
             <div className="flex items-center gap-1.5">
               <div className="w-3 h-3 bg-gray-400 rounded-sm" />
               <span className="text-[10px] font-bold text-gray-500 uppercase">Not Started</span>
@@ -127,14 +126,8 @@ export default function SummaryPage({ userId }) {
             </div>
             <div className="flex items-center gap-1.5">
               <div className="w-3 h-3 bg-[#3E7C7D] rounded-sm" />
-              <span className="text-[10px] font-bold text-gray-500 uppercase">100% Done</span>
+              <span className="text-[10px] font-bold text-gray-500 uppercase">100%</span>
             </div>
-          </div>
-        </div>
-
-        <div className="mt-4 flex justify-between text-[10px] font-black uppercase tracking-widest text-gray-300">
-          <span>30 Days Ago</span>
-          <span>Today</span>
         </div>
       </div>
 
