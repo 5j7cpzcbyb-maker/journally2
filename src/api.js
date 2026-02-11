@@ -72,6 +72,15 @@ export const getDailyGoals = async (userId) => {
   return { data, error };
 };
 
+// RESTORE A SOFT-DELETED GOAL
+export const restoreGoal = async (goalId) => {
+  const { error } = await supabase
+    .from('goals')
+    .update({ is_deleted: false })
+    .eq('id', goalId);
+  return { error };
+};
+
 // 3. CHECK / UNCHECK A GOAL
 // This is tricky! If it's checked, we delete the log. If it's unchecked, we create a log.
 // 'dateStr' should be "YYYY-MM-DD"
