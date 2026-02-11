@@ -95,6 +95,7 @@ export default function SummaryPage({ userId }) {
         </select>
       </div>
 
+      {/* CALENDAR GRID */}
       <div className="bg-white p-6 rounded-3xl shadow-xl border-b-8 border-[#D45D21]">
         <div className="grid grid-cols-7 gap-2">
           {last30Days.map(date => (
@@ -105,7 +106,6 @@ export default function SummaryPage({ userId }) {
           ))}
         </div>
         
-        {/* IMPROVED FULL LEGEND */}
         <div className="mt-8 space-y-3 border-t pt-4">
           <p className="text-[10px] font-black uppercase tracking-tighter text-gray-400">Activity Key</p>
           <div className="flex flex-wrap gap-x-4 gap-y-2">
@@ -138,16 +138,24 @@ export default function SummaryPage({ userId }) {
         </div>
       </div>
 
-      <div className="bg-[#D45D21] text-white p-6 rounded-2xl shadow-lg text-center relative overflow-hidden">
+      {/* MOTIVATION STAT CARD */}
+      <div className="bg-[#D45D21] text-white p-8 rounded-2xl shadow-lg text-center relative overflow-hidden">
         <div className="absolute -right-4 -bottom-4 opacity-10 rotate-12">
           <CheckCircle2 size={120} />
         </div>
-        <p className="text-sm opacity-80 uppercase tracking-widest font-bold">Lifetime Success Rate</p>
-        <div className="flex items-center justify-center gap-2">
+        
+        <p className="text-sm opacity-80 uppercase tracking-widest font-bold">
+          Consistency Rate
+        </p>
+        
+        <div className="flex items-center justify-center mt-2">
           <p className="text-6xl font-black">{completionRate}%</p>
         </div>
-        <p className="mt-2 text-xs italic opacity-90 tracking-tight">
-          Consistency is the secret sauce. Keep going!
+
+        <p className="mt-4 text-xs italic opacity-90 tracking-tight">
+          {completionRate >= 80 ? "You're crushing it! 🔥" : 
+           completionRate >= 50 ? "Halfway there, keep it up! 👍" : 
+           "Every small step counts. Let's grow! 🌱"}
         </p>
       </div>
     </div>
