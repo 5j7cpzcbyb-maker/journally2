@@ -24,22 +24,34 @@ export default function SummaryPage({ userId }) {
   });
 
   const getShade = (date) => {
+    // 1. Calculate how many goals actually existed on this date
+    const goalsExistedOnDate = goals.filter(g => 
+      date >= g.created_at.split('T')[0]
+    );
+    
+    // 2. Logic for "Individual Goal" View
     if (selectedGoalId !== 'all') {
       const goal = goals.find(g => g.id === selectedGoalId);
       const isBeforeCreation = goal && date < goal.created_at.split('T')[0];
       const isCompleted = logs.some(l => l.completed_at === date && l.goal_id === selectedGoalId);
-      if (isBeforeCreation) return "bg-gray-400"; 
-      if (isCompleted) return "bg-[#3E7C7D]";      
-      return "bg-gray-100";                       
+      
+      if (isBeforeCreation) return "bg-gray-400"; // Dark Grey: Goal didn't exist
+      if (isCompleted) return "bg-[#3E7C7D]";      // Green: Done
+      return "bg-gray-100";                       // Light Grey: Missed
     }
 
-    const activeGoalsOnDate = goals.filter(g => 
-      date >= g.created_at.split('T')[0] && !g.is_deleted
-    ).length;
+    // 3. Logic for "Overall Combined Progress"
+    // If NO goals existed at all on this day across the whole app
+    if (goalsExistedOnDate.length === 0) return "bg-gray-400"; 
+
+    const activeGoalsCount = goalsExistedOnDate.filter(g => !g.is_deleted).length;
     const completedOnDate = logs.filter(l => l.completed_at === date).length;
-    if (activeGoalsOnDate === 0) return "bg-gray-100";
-    const percentage = (completedOnDate / activeGoalsOnDate) * 100;
-    if (percentage === 0) return "bg-gray-100";
+
+    if (activeGoalsCount === 0) return "bg-gray-100";
+    
+    const percentage = (completedOnDate / activeGoalsCount) * 100;
+
+    if (percentage === 0) return "bg-gray-100";      // Light Grey: Missed tasks
     if (percentage <= 33) return "bg-[#3E7C7D]/30";  
     if (percentage <= 66) return "bg-[#3E7C7D]/60";  
     return "bg-[#3E7C7D]";                           
@@ -50,22 +62,18 @@ export default function SummaryPage({ userId }) {
     const today = new Date();
 
     if (selectedGoalId === 'all') {
-      // INCEPTION LOGIC: Sum of (Today - CreatedAt) for all goals
       let totalPotential = 0;
       goals.forEach(g => {
         const createdAt = new Date(g.created_at);
         const diffTime = Math.abs(today - createdAt);
-        // Days elapsed + 1 to include the creation day itself
         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) || 1; 
         totalPotential += diffDays;
       });
 
-      const totalActual = logs.length; // All logs ever recorded
+      const totalActual = logs.length; 
       if (totalPotential === 0) return 0;
       return Math.min(Math.round((totalActual / totalPotential) * 100), 100);
-
     } else {
-      // SINGLE GOAL INCEPTION LOGIC
       const goal = goals.find(g => g.id === selectedGoalId);
       if (!goal) return 0;
 
@@ -81,7 +89,7 @@ export default function SummaryPage({ userId }) {
   const completionRate = calculateCompletionRate();
 
   return (
-    <div className="max-w-md mx-auto space-y-8 pb-24">
+    <div className="max-w-md mx-auto space-y-8 pb-32"> {/* Increased padding for nav bar */}
       <div className="text-center">
         <h2 className="text-3xl font-bold text-[#3E7C7D] mb-4">Progress Gallery</h2>
         <select 
@@ -101,25 +109,27 @@ export default function SummaryPage({ userId }) {
           {last30Days.map(date => (
             <div 
               key={date}
+              title={date}
               className={`h-10 w-10 rounded-lg ${getShade(date)} transition-all duration-500 border border-black/5`}
             />
           ))}
         </div>
         
-        {selectedGoalId === 'all' && (
-          <div className="mt-4 flex items-center justify-end gap-2 text-[10px] font-bold text-gray-400 uppercase">
-            <span>Less</span>
-            <div className="w-3 h-3 bg-gray-100 rounded-sm" />
-            <div className="w-3 h-3 bg-[#3E7C7D]/30 rounded-sm" />
-            <div className="w-3 h-3 bg-[#3E7C7D]/60 rounded-sm" />
-            <div className="w-3 h-3 bg-[#3E7C7D] rounded-sm" />
-            <span>More</span>
-          </div>
-        )}
-
-        <div className="mt-2 flex justify-between text-xs font-bold uppercase tracking-widest text-gray-400">
-          <span>30 Days Ago</span>
-          <span>Today</span>
+        <div className="mt-4 flex items-center justify-between">
+            <div className="flex gap-2 items-center text-[10px] font-bold text-gray-400 uppercase">
+                <div className="w-3 h-3 bg-gray-400 rounded-sm" />
+                <span>Pre-Journally</span>
+            </div>
+            {selectedGoalId === 'all' && (
+              <div className="flex items-center gap-2 text-[10px] font-bold text-gray-400 uppercase">
+                <span>Less</span>
+                <div className="w-3 h-3 bg-gray-100 rounded-sm" />
+                <div className="w-3 h-3 bg-[#3E7C7D]/30 rounded-sm" />
+                <div className="w-3 h-3 bg-[#3E7C7D]/60 rounded-sm" />
+                <div className="w-3 h-3 bg-[#3E7C7D] rounded-sm" />
+                <span>More</span>
+              </div>
+            )}
         </div>
       </div>
 
@@ -134,7 +144,7 @@ export default function SummaryPage({ userId }) {
           <p className="text-6xl font-black">{completionRate}%</p>
         </div>
         <p className="mt-2 text-xs italic opacity-90">
-          Since the inception of your {selectedGoalId === 'all' ? 'journey' : 'habit'}.
+          Calculated from the first day you started tracking.
         </p>
       </div>
     </div>
