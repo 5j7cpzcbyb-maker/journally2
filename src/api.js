@@ -1,5 +1,15 @@
 import { supabase } from './supabaseClient.js';
 
+// --- THEME PREFERENCE ---
+
+// Update user theme preference
+export const updateTheme = async (userId, theme) => {
+  return await supabase
+    .from('profiles')
+    .update({ theme: theme })
+    .eq('id', userId);
+};
+
 // --- 1. AUTHENTICATION ---
 
 export const signUpUser = async (email, password, firstName, lastName) => {
