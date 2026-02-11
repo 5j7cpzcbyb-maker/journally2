@@ -37,6 +37,7 @@ export default function SettingsPage({ userId }) {
     }
   };
 
+  
   const handleToggleChange = () => {
     const nextMode = !isDarkMode;
     setIsDarkMode(nextMode);
