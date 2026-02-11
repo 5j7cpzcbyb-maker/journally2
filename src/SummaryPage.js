@@ -17,77 +17,63 @@ export default function SummaryPage({ userId }) {
     fetchData();
   }, [userId]);
 
-  // Generate the last 30 days
   const last30Days = [...Array(30)].map((_, i) => {
     const d = new Date();
     d.setDate(d.getDate() - (29 - i));
     return d.toISOString().split('T')[0];
   });
 
-  // Helper to determine the color shade based on completion percentage
   const getShade = (date) => {
-    // 1. Logic for "Individual Goal" View
     if (selectedGoalId !== 'all') {
       const goal = goals.find(g => g.id === selectedGoalId);
       const isBeforeCreation = goal && date < goal.created_at.split('T')[0];
       const isCompleted = logs.some(l => l.completed_at === date && l.goal_id === selectedGoalId);
-
       if (isBeforeCreation) return "bg-gray-400"; 
       if (isCompleted) return "bg-[#3E7C7D]";      
       return "bg-gray-100";                       
     }
 
-    // 2. Logic for "Overall Combined Progress" (Shading)
     const activeGoalsOnDate = goals.filter(g => 
       date >= g.created_at.split('T')[0] && !g.is_deleted
     ).length;
-    
     const completedOnDate = logs.filter(l => l.completed_at === date).length;
-
     if (activeGoalsOnDate === 0) return "bg-gray-100";
-    
     const percentage = (completedOnDate / activeGoalsOnDate) * 100;
-
     if (percentage === 0) return "bg-gray-100";
     if (percentage <= 33) return "bg-[#3E7C7D]/30";  
     if (percentage <= 66) return "bg-[#3E7C7D]/60";  
     return "bg-[#3E7C7D]";                           
   };
 
-  // Helper to calculate the completion rate percentage correctly
   const calculateCompletionRate = () => {
     if (goals.length === 0) return 0;
-
-    // FIX: Only count logs that exist within the 30-day window displayed
-    const logsInWindow = logs.filter(l => last30Days.includes(l.completed_at));
+    const today = new Date();
 
     if (selectedGoalId === 'all') {
-      // Calculate total potential checkmarks over 30 days
-      const totalPotential = last30Days.reduce((acc, date) => {
-        const activeOnDate = goals.filter(g => 
-          date >= g.created_at.split('T')[0] && !g.is_deleted
-        ).length;
-        return acc + activeOnDate;
-      }, 0);
+      // INCEPTION LOGIC: Sum of (Today - CreatedAt) for all goals
+      let totalPotential = 0;
+      goals.forEach(g => {
+        const createdAt = new Date(g.created_at);
+        const diffTime = Math.abs(today - createdAt);
+        // Days elapsed + 1 to include the creation day itself
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) || 1; 
+        totalPotential += diffDays;
+      });
 
-      const totalActual = logsInWindow.length; 
-      
+      const totalActual = logs.length; // All logs ever recorded
       if (totalPotential === 0) return 0;
-      // Cap at 100% to handle duplicate log data
       return Math.min(Math.round((totalActual / totalPotential) * 100), 100);
 
     } else {
-      // Logic for a single habit
+      // SINGLE GOAL INCEPTION LOGIC
       const goal = goals.find(g => g.id === selectedGoalId);
       if (!goal) return 0;
 
-      const creationDate = goal.created_at.split('T')[0];
-      const potentialDays = last30Days.filter(date => date >= creationDate).length;
+      const createdAt = new Date(goal.created_at);
+      const diffTime = Math.abs(today - createdAt);
+      const potentialDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) || 1;
       
-      // Filter logs for this specific goal AND within the 30-day window
-      const actualCompletions = logsInWindow.filter(l => l.goal_id === selectedGoalId).length;
-
-      if (potentialDays === 0) return 0;
+      const actualCompletions = logs.filter(l => l.goal_id === selectedGoalId).length;
       return Math.min(Math.round((actualCompletions / potentialDays) * 100), 100);
     }
   };
@@ -95,10 +81,9 @@ export default function SummaryPage({ userId }) {
   const completionRate = calculateCompletionRate();
 
   return (
-    <div className="max-w-md mx-auto space-y-8 pb-20">
+    <div className="max-w-md mx-auto space-y-8 pb-24">
       <div className="text-center">
         <h2 className="text-3xl font-bold text-[#3E7C7D] mb-4">Progress Gallery</h2>
-        
         <select 
           className="w-full p-3 rounded-xl border-2 border-[#D45D21] bg-white outline-none font-bold text-[#D45D21]"
           value={selectedGoalId}
@@ -111,19 +96,16 @@ export default function SummaryPage({ userId }) {
         </select>
       </div>
 
-      {/* CALENDAR GRID */}
       <div className="bg-white p-6 rounded-3xl shadow-xl border-b-8 border-[#D45D21]">
         <div className="grid grid-cols-7 gap-2">
           {last30Days.map(date => (
             <div 
               key={date}
-              title={`${date}`}
               className={`h-10 w-10 rounded-lg ${getShade(date)} transition-all duration-500 border border-black/5`}
             />
           ))}
         </div>
         
-        {/* LEGEND */}
         {selectedGoalId === 'all' && (
           <div className="mt-4 flex items-center justify-end gap-2 text-[10px] font-bold text-gray-400 uppercase">
             <span>Less</span>
@@ -141,24 +123,18 @@ export default function SummaryPage({ userId }) {
         </div>
       </div>
 
-      {/* MOTIVATION STAT */}
       <div className="bg-[#D45D21] text-white p-6 rounded-2xl shadow-lg text-center relative overflow-hidden">
         <div className="absolute -right-4 -bottom-4 opacity-10 rotate-12">
           <CheckCircle2 size={120} />
         </div>
-        
         <p className="text-sm opacity-80 uppercase tracking-widest font-bold">
-          {selectedGoalId === 'all' ? 'Overall Success Rate' : 'Habit Consistency'}
+          Lifetime Success Rate
         </p>
-        
         <div className="flex items-center justify-center gap-2">
           <p className="text-6xl font-black">{completionRate}%</p>
         </div>
-
         <p className="mt-2 text-xs italic opacity-90">
-          {completionRate >= 80 ? "You're crushing it! 🔥" : 
-           completionRate >= 50 ? "Halfway there, keep it up! 👍" : 
-           "Every small step counts. Let's grow! 🌱"}
+          Since the inception of your {selectedGoalId === 'all' ? 'journey' : 'habit'}.
         </p>
       </div>
     </div>
