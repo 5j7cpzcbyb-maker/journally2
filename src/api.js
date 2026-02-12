@@ -110,15 +110,15 @@ export const getGoalLogs = async (userId) => {
 
 const generateJoinCode = () => Math.random().toString(36).substring(2, 8).toUpperCase();
 
-// FIX: Removed duplicate and updated 'owner_id' to 'created_by'
 export const createGroup = async (userId, groupName) => {
   const joinCode = generateJoinCode();
 
+  // Matches your Supabase table column 'created_by'
   const { data: groupData, error: groupError } = await supabase
     .from('groups')
     .insert([{ 
       name: groupName, 
-      created_by: userId, // Matches your Supabase table
+      created_by: userId, 
       join_code: joinCode 
     }])
     .select()
@@ -126,12 +126,36 @@ export const createGroup = async (userId, groupName) => {
 
   if (groupError) return { error: groupError };
 
-  // This part adds the creator to the members list
+  // Automatically add the creator as the first member
   const { error: memberError } = await supabase
     .from('group_members')
     .insert([{ group_id: groupData.id, user_id: userId }]);
   
   if (memberError) return { error: memberError };
+
+  return { data: groupData, error: null };
+};
+
+// ADDED: This fixes the "Attempted import error" from your screenshot
+export const joinGroupByCode = async (userId, inputCode) => {
+  // 1. Find the group with that code
+  const { data: groupData, error: groupError } = await supabase
+    .from('groups')
+    .select('id')
+    .eq('join_code', inputCode.toUpperCase())
+    .single();
+
+  if (groupError || !groupData) return { error: "Invalid or expired join code." };
+
+  // 2. Add the user to that group
+  const { error: joinError } = await supabase
+    .from('group_members')
+    .insert([{ group_id: groupData.id, user_id: userId }]);
+
+  if (joinError) {
+    if (joinError.code === '23505') return { error: "You are already in this circle!" };
+    return { error: joinError.message };
+  }
 
   return { data: groupData, error: null };
 };
@@ -194,5 +218,5 @@ export const deleteGroup = async (groupId, userId) => {
   return await supabase
     .from('groups')
     .delete()
-    .match({ id: groupId, created_by: userId }); // FIX: Changed owner_id to created_by
+    .match({ id: groupId, created_by: userId });
 };
