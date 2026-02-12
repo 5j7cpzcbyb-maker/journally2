@@ -57,7 +57,7 @@ export default function SummaryPage({ userId }) {
         title: "Elite Momentum",
         text: "Your discipline is becoming a part of your identity. You're showing up even when it's hard.",
         icon: <TrendingUp className="text-green-500" />,
-        highlight: `Doing Right: You've mastered ${activeGoals.length} habits simultaneously.`
+        highlight: `Doing Right: You're mastering ${activeGoals.length} habits simultaneously.`
       };
     }
 
