@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { CheckCircle2 } from 'lucide-react';
+import { CheckCircle2, Flame } from 'lucide-react';
 import { getAllGoalsHistory, getGoalLogs } from './api';
 
 export default function SummaryPage({ userId }) {
@@ -23,14 +23,10 @@ export default function SummaryPage({ userId }) {
     return d.toISOString().split('T')[0];
   });
 
-  // Check for dark mode once for the render cycle
   const isDark = typeof document !== 'undefined' && document.documentElement.classList.contains('dark');
 
-  // Unified color source for both Grid and Legend
   const themeColors = {
-    // gray-700 in dark mode / gray-300 in light mode
     notStarted: isDark ? 'rgb(55, 65, 81)' : 'rgb(209, 213, 219)', 
-    // gray-950 in dark mode / gray-100 in light mode
     missed: isDark ? 'rgb(17, 24, 39)' : 'rgb(243, 244, 246)',    
     brandGreen: 'rgb(62, 124, 125)'
   };
@@ -49,7 +45,6 @@ export default function SummaryPage({ userId }) {
     }
 
     if (goalsExistedOnDate.length === 0) return { backgroundColor: themeColors.notStarted };
-
     const activeGoalsCount = goalsExistedOnDate.filter(g => !g.is_deleted).length;
     const completedOnDate = logs.filter(l => l.completed_at === date).length;
 
@@ -58,6 +53,32 @@ export default function SummaryPage({ userId }) {
     const percentage = completedOnDate / activeGoalsCount;
     const alpha = 0.2 + (percentage * 0.8); 
     return { backgroundColor: `rgba(62, 124, 125, ${alpha})` };
+  };
+
+  // --- STREAK LOGIC ---
+  const calculateStreak = () => {
+    let streak = 0;
+    const today = new Date();
+    
+    // Check backwards from today
+    for (let i = 0; i < 30; i++) {
+      const d = new Date();
+      d.setDate(today.getDate() - i);
+      const dateStr = d.toISOString().split('T')[0];
+      
+      const hasLog = selectedGoalId === 'all' 
+        ? logs.some(l => l.completed_at === dateStr)
+        : logs.some(l => l.completed_at === dateStr && l.goal_id === selectedGoalId);
+      
+      if (hasLog) {
+        streak++;
+      } else {
+        // If they haven't logged today yet, don't break the streak immediately
+        // but if they missed yesterday, the streak is over.
+        if (i > 0) break; 
+      }
+    }
+    return streak;
   };
 
   const calculateCompletionRate = () => {
@@ -72,7 +93,6 @@ export default function SummaryPage({ userId }) {
         totalPotential += diffDays;
       });
       const totalActual = logs.length; 
-      if (totalPotential === 0) return 0;
       return Math.min(Math.round((totalActual / totalPotential) * 100), 100);
     } else {
       const goal = goals.find(g => g.id === selectedGoalId);
@@ -85,6 +105,7 @@ export default function SummaryPage({ userId }) {
   };
 
   const completionRate = calculateCompletionRate();
+  const currentStreak = calculateStreak();
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-500 pb-32 px-4 pt-4">
@@ -116,20 +137,13 @@ export default function SummaryPage({ userId }) {
             ))}
           </div>
           
-          {/* LEGEND: Now uses dynamic styles to match the grid exactly */}
           <div className="mt-6 flex flex-wrap justify-center gap-x-4 gap-y-2">
               <div className="flex items-center gap-1.5">
-                <div 
-                  className="w-3 h-3 rounded-sm" 
-                  style={{ backgroundColor: themeColors.notStarted }} 
-                />
+                <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: themeColors.notStarted }} />
                 <span className="text-[10px] font-bold text-gray-400 uppercase">Not Started</span>
               </div>
               <div className="flex items-center gap-1.5">
-                <div 
-                  className="w-3 h-3 rounded-sm" 
-                  style={{ backgroundColor: themeColors.missed }} 
-                />
+                <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: themeColors.missed }} />
                 <span className="text-[10px] font-bold text-gray-400 uppercase">Missed</span>
               </div>
               <div className="flex items-center gap-1.5">
@@ -139,18 +153,27 @@ export default function SummaryPage({ userId }) {
           </div>
         </div>
 
-        {/* CONSISTENCY CARD */}
-        <div className="bg-[#D45D21] text-white p-8 rounded-3xl shadow-lg text-center relative overflow-hidden">
-          <div className="absolute -right-4 -bottom-4 opacity-10 rotate-12">
-            <CheckCircle2 size={120} />
-          </div>
-          <p className="text-sm opacity-80 uppercase tracking-widest font-bold">Consistency Rate</p>
-          <div className="flex items-center justify-center mt-2">
-            <p className="text-6xl font-black">{completionRate}%</p>
-          </div>
-          <p className="mt-4 text-xs italic opacity-90 tracking-tight">
+        {/* STATS CARDS */}
+        <div className="grid grid-cols-2 gap-4">
+            <div className="bg-[#D45D21] text-white p-6 rounded-3xl shadow-lg text-center relative overflow-hidden">
+                <p className="text-[10px] opacity-80 uppercase tracking-widest font-bold">Consistency</p>
+                <p className="text-4xl font-black mt-1">{completionRate}%</p>
+            </div>
+
+            <div className="bg-[#3E7C7D] text-white p-6 rounded-3xl shadow-lg text-center relative overflow-hidden">
+                <div className="absolute -right-2 -bottom-2 opacity-20">
+                    <Flame size={60} />
+                </div>
+                <p className="text-[10px] opacity-80 uppercase tracking-widest font-bold">Best Streak</p>
+                <p className="text-4xl font-black mt-1">{currentStreak}d</p>
+            </div>
+        </div>
+
+        {/* MOTIVATIONAL QUOTE */}
+        <div className="bg-white dark:bg-gray-800 p-6 rounded-3xl shadow-md text-center border-l-8 border-[#3E7C7D]">
+          <p className="text-sm italic text-gray-600 dark:text-gray-300">
             {completionRate >= 80 ? "You're crushing it! 🔥" : 
-             completionRate >= 50 ? "Over halfway there, keep it up! 👍" : 
+             completionRate >= 50 ? "Keep it up! 👍" : 
              "Every small step counts. Let's grow! 🌱"}
           </p>
         </div>
