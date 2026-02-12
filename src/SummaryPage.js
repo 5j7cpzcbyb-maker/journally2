@@ -55,12 +55,10 @@ export default function SummaryPage({ userId }) {
     return { backgroundColor: `rgba(62, 124, 125, ${alpha})` };
   };
 
-  // --- STREAK LOGIC ---
   const calculateStreak = () => {
     let streak = 0;
     const today = new Date();
     
-    // Check backwards from today
     for (let i = 0; i < 30; i++) {
       const d = new Date();
       d.setDate(today.getDate() - i);
@@ -73,8 +71,6 @@ export default function SummaryPage({ userId }) {
       if (hasLog) {
         streak++;
       } else {
-        // If they haven't logged today yet, don't break the streak immediately
-        // but if they missed yesterday, the streak is over.
         if (i > 0) break; 
       }
     }
@@ -153,18 +149,23 @@ export default function SummaryPage({ userId }) {
           </div>
         </div>
 
-        {/* STATS CARDS */}
+        {/* STATS TILES */}
         <div className="grid grid-cols-2 gap-4">
+            {/* Consistency Rate Tile */}
             <div className="bg-[#D45D21] text-white p-6 rounded-3xl shadow-lg text-center relative overflow-hidden">
+                <div className="absolute -right-2 -bottom-2 opacity-20">
+                    <CheckCircle2 size={60} />
+                </div>
                 <p className="text-[10px] opacity-80 uppercase tracking-widest font-bold">Consistency</p>
                 <p className="text-4xl font-black mt-1">{completionRate}%</p>
             </div>
 
+            {/* Streak Tile */}
             <div className="bg-[#3E7C7D] text-white p-6 rounded-3xl shadow-lg text-center relative overflow-hidden">
                 <div className="absolute -right-2 -bottom-2 opacity-20">
                     <Flame size={60} />
                 </div>
-                <p className="text-[10px] opacity-80 uppercase tracking-widest font-bold">Best Streak</p>
+                <p className="text-[10px] opacity-80 uppercase tracking-widest font-bold">Current Streak</p>
                 <p className="text-4xl font-black mt-1">{currentStreak}d</p>
             </div>
         </div>
@@ -173,7 +174,7 @@ export default function SummaryPage({ userId }) {
         <div className="bg-white dark:bg-gray-800 p-6 rounded-3xl shadow-md text-center border-l-8 border-[#3E7C7D]">
           <p className="text-sm italic text-gray-600 dark:text-gray-300">
             {completionRate >= 80 ? "You're crushing it! 🔥" : 
-             completionRate >= 50 ? "Keep it up! 👍" : 
+             completionRate >= 50 ? "Over halfway there, keep it up! 👍" : 
              "Every small step counts. Let's grow! 🌱"}
           </p>
         </div>
