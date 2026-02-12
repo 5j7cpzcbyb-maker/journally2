@@ -125,20 +125,22 @@ export const createGroup = async (userId, groupName) => {
 };
 
 // Renamed to avoid duplication conflict
-export const joinGroupByCode = async (userId, codeInput) => {
-  const { data: group, error: searchError } = await supabase
+export const createGroup = async (userId, groupName) => {
+  const joinCode = generateJoinCode();
+
+  // FIX: Change 'owner_id' to 'created_by' to match your Supabase table
+  const { data: groupData, error: groupError } = await supabase
     .from('groups')
-    .select('id, name')
-    .eq('join_code', codeInput.toUpperCase())
+    .insert([{ name: groupName, created_by: userId, join_code: joinCode }])
+    .select()
     .single();
 
-  if (searchError || !group) return { error: 'Group not found!' };
+  if (groupError) return { error: groupError };
 
-  const { error: joinError } = await supabase
-    .from('group_members')
-    .insert([{ group_id: group.id, user_id: userId }]);
-
-  return { data: group, error: joinError };
+  // This part adds the creator to the members list
+  await supabase.from('group_members').insert([{ group_id: groupData.id, user_id: userId }]);
+  
+  return { data: groupData, error: null };
 };
 
 // This is the one used by your "Join" button in the list
