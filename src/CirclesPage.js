@@ -83,7 +83,7 @@ export default function CirclesPage({ userId }) {
 
   const handleDelete = async (e, groupId) => {
     e.stopPropagation();
-    if (window.confirm("DANGER: This will delete the group for everyone. Proceed?")) {
+    if (window.confirm("DANGER: This will delete the group for everyone. This cannot be undone.")) {
       await deleteGroup(groupId, userId);
       setSelectedGroup(null);
       fetchGroups();
@@ -97,9 +97,12 @@ export default function CirclesPage({ userId }) {
     return { backgroundColor: `rgba(62, 124, 125, ${alpha})` };
   };
 
-  // VIEW 1: Leaderboard Detail (With Personal Goal Focus)
+  // --- VIEW 1: Leaderboard & Personal Goals ---
   if (selectedGroup) {
+    const isOwner = selectedGroup.owner_id === userId;
     const currentUserData = members.find(m => m.id === userId);
+    
+    // Sort squad by completion percentage
     const otherMembers = members
       .filter(m => m.id !== userId)
       .sort((a, b) => {
@@ -109,35 +112,36 @@ export default function CirclesPage({ userId }) {
       });
 
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-500 pb-32 px-4 pt-4">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 pb-32 px-4 pt-4">
         <div className="max-w-md mx-auto space-y-6">
-          {/* Top Bar */}
+          {/* Header Actions */}
           <div className="flex justify-between items-center">
             <button onClick={() => setSelectedGroup(null)} className="flex items-center text-[#3E7C7D] dark:text-teal-400 font-bold gap-1">
               <ChevronLeft size={20} /> Back
             </button>
             
-            {selectedGroup.owner_id === userId ? (
-              <button onClick={(e) => handleDelete(e, selectedGroup.id)} className="text-red-400 flex items-center gap-1 text-xs font-bold uppercase">
+            {/* Logic Fix: Owner vs Member Controls */}
+            {isOwner ? (
+              <button onClick={(e) => handleDelete(e, selectedGroup.id)} className="text-red-500 flex items-center gap-1 text-[10px] font-black uppercase tracking-widest bg-red-50 dark:bg-red-900/20 px-3 py-2 rounded-xl">
                 <Trash2 size={14} /> Delete Circle
               </button>
             ) : (
-              <button onClick={(e) => handleLeave(e, selectedGroup.id)} className="text-gray-400 flex items-center gap-1 text-xs font-bold uppercase">
-                <LogOut size={14} /> Leave
+              <button onClick={(e) => handleLeave(e, selectedGroup.id)} className="text-gray-500 flex items-center gap-1 text-[10px] font-black uppercase tracking-widest bg-gray-100 dark:bg-gray-800 px-3 py-2 rounded-xl">
+                <LogOut size={14} /> Leave Circle
               </button>
             )}
           </div>
 
-          {/* User's Personal Goal Card */}
+          {/* 1. YOUR GOALS (Top Priority) */}
           {currentUserData && (
             <div className="bg-white dark:bg-gray-800 p-6 rounded-3xl shadow-xl border-2 border-[#D45D21]">
               <div className="flex justify-between items-start mb-4">
                 <div>
-                  <h3 className="text-[10px] font-black text-[#D45D21] uppercase tracking-widest mb-1">Your Daily Progress</h3>
+                  <h3 className="text-[10px] font-black text-[#D45D21] uppercase tracking-widest">
+                    {isOwner ? "Founder's Progress" : "My Progress"}
+                  </h3>
                   <h2 className="text-2xl font-bold text-gray-800 dark:text-white">
-                    {currentUserData.completed_today >= currentUserData.total_habits && currentUserData.total_habits > 0 
-                      ? "All done! 🌟" 
-                      : "Keep pushing!"}
+                    {selectedGroup.name}
                   </h2>
                 </div>
                 <div className="bg-[#D45D21]/10 p-2 rounded-xl text-[#D45D21]">
@@ -152,13 +156,13 @@ export default function CirclesPage({ userId }) {
                       ? Math.round((currentUserData.completed_today / currentUserData.total_habits) * 100) 
                       : 0}%
                   </span>
-                  <span className="text-xs font-bold text-gray-400 uppercase tracking-tighter">
-                    {currentUserData.completed_today} / {currentUserData.total_habits} Goals Met
+                  <span className="text-xs font-bold text-gray-400 uppercase">
+                    {currentUserData.completed_today} / {currentUserData.total_habits} Done
                   </span>
                 </div>
-                <div className="w-full h-3 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+                <div className="w-full h-3 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
                   <div 
-                    className="h-full bg-[#D45D21] transition-all duration-700 ease-out" 
+                    className="h-full bg-[#D45D21] transition-all duration-1000" 
                     style={{ width: `${(currentUserData.completed_today / (currentUserData.total_habits || 1)) * 100}%` }}
                   />
                 </div>
@@ -166,47 +170,46 @@ export default function CirclesPage({ userId }) {
             </div>
           )}
 
-          {/* Squad Leaderboard Section */}
+          {/* 2. SQUAD SUMMARY */}
           <div className="space-y-4">
-            <div className="flex items-center justify-between px-2">
+            <div className="flex items-center justify-between px-1">
               <div className="flex items-center gap-2">
                 <Users size={16} className="text-[#3E7C7D]" />
-                <h3 className="text-xs font-black text-gray-500 dark:text-gray-400 uppercase tracking-widest">Circle Members</h3>
+                <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest">The Squad</h3>
               </div>
               <button 
                 onClick={() => handleCopyCode(selectedGroup.join_code)}
-                className="flex items-center gap-1 text-[10px] font-black text-[#3E7C7D] uppercase"
+                className="text-[10px] font-black text-[#3E7C7D] bg-[#3E7C7D]/10 px-2 py-1 rounded-md flex items-center gap-1"
               >
-                Code: {selectedGroup.join_code} {copied ? <Check size={10} /> : <Copy size={10} />}
+                CODE: {selectedGroup.join_code} {copied ? <Check size={10}/> : <Copy size={10}/>}
               </button>
             </div>
 
             <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
               <div className="divide-y divide-gray-50 dark:divide-gray-700">
-                {otherMembers.map((member) => (
-                  <div key={member.id} className="p-4 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div 
-                        style={getMemberProgressStyle(member.completed_today, member.total_habits)}
-                        className="w-10 h-10 rounded-full border border-white/20 flex items-center justify-center text-white font-black text-sm"
-                      >
-                        {member.name.charAt(0)}
+                {otherMembers.length > 0 ? (
+                  otherMembers.map((member) => (
+                    <div key={member.id} className="p-4 flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div 
+                          style={getMemberProgressStyle(member.completed_today, member.total_habits)}
+                          className="w-10 h-10 rounded-full flex items-center justify-center text-white font-black text-sm"
+                        >
+                          {member.name.charAt(0)}
+                        </div>
+                        <div>
+                          <p className="font-bold text-gray-700 dark:text-gray-200 text-sm">{member.name}</p>
+                          <p className="text-[10px] text-gray-400 font-bold uppercase">{member.completed_today} / {member.total_habits} Goals</p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="font-bold text-gray-700 dark:text-gray-200 text-sm">{member.name}</p>
-                        <p className="text-[10px] text-gray-400 font-bold uppercase">
-                          {member.completed_today} / {member.total_habits} Done
-                        </p>
-                      </div>
+                      <p className="font-black text-[#3E7C7D] dark:text-teal-400">
+                        {member.total_habits > 0 ? Math.round((member.completed_today / member.total_habits) * 100) : 0}%
+                      </p>
                     </div>
-                    <p className="font-black text-[#3E7C7D] dark:text-teal-400">
-                      {member.total_habits > 0 ? Math.round((member.completed_today / member.total_habits) * 100) : 0}%
-                    </p>
-                  </div>
-                ))}
-                {otherMembers.length === 0 && (
-                  <div className="p-10 text-center">
-                    <p className="text-sm text-gray-400 italic">No one else is here yet.</p>
+                  ))
+                ) : (
+                  <div className="p-8 text-center text-gray-400 text-xs font-bold uppercase tracking-widest">
+                    No other members yet
                   </div>
                 )}
               </div>
@@ -217,9 +220,9 @@ export default function CirclesPage({ userId }) {
     );
   }
 
-  // VIEW 2: List View (Remains same as your original)
+  // --- VIEW 2: List View ---
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-500 pb-32 px-4 pt-4">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 pb-32 px-4 pt-4">
       <div className="max-w-md mx-auto space-y-6">
         <div className="flex justify-between items-end">
           <div>
@@ -240,9 +243,10 @@ export default function CirclesPage({ userId }) {
           </div>
         </div>
 
+        {/* Modal-style Inputs for Join/Create */}
         {isJoiningCode && (
-          <div className="bg-white dark:bg-gray-800 p-4 rounded-2xl shadow-xl border-2 border-[#3E7C7D] transition-colors">
-            <p className="text-[10px] font-black text-[#3E7C7D] dark:text-teal-400 uppercase mb-2 ml-1">Enter 6-Digit Code</p>
+          <div className="bg-white dark:bg-gray-800 p-4 rounded-2xl shadow-xl border-2 border-[#3E7C7D]">
+            <p className="text-[10px] font-black text-[#3E7C7D] uppercase mb-2 ml-1">Enter Circle Code</p>
             <div className="flex gap-2">
               <input autoFocus maxLength={6} className="flex-1 bg-gray-50 dark:bg-gray-900 dark:text-white p-3 rounded-xl font-bold uppercase outline-none" placeholder="ABC123" value={inputCode} onChange={(e) => setInputCode(e.target.value)} />
               <button onClick={handleJoinByCode} className="bg-[#3E7C7D] text-white p-3 rounded-xl"><Check size={20} /></button>
@@ -252,16 +256,17 @@ export default function CirclesPage({ userId }) {
         )}
 
         {isCreating && (
-          <div className="bg-white dark:bg-gray-800 p-4 rounded-2xl shadow-xl border-2 border-[#D45D21] transition-colors">
+          <div className="bg-white dark:bg-gray-800 p-4 rounded-2xl shadow-xl border-2 border-[#D45D21]">
             <p className="text-[10px] font-black text-[#D45D21] uppercase mb-2 ml-1">New Circle Name</p>
             <div className="flex gap-2">
-              <input autoFocus className="flex-1 bg-gray-50 dark:bg-gray-900 dark:text-white p-3 rounded-xl font-bold outline-none" placeholder="e.g. Yoga Squad" value={newGroupName} onChange={(e) => setNewGroupName(e.target.value)} />
+              <input autoFocus className="flex-1 bg-gray-50 dark:bg-gray-900 dark:text-white p-3 rounded-xl font-bold outline-none" placeholder="e.g. Morning Runners" value={newGroupName} onChange={(e) => setNewGroupName(e.target.value)} />
               <button onClick={handleCreateGroup} className="bg-[#D45D21] text-white p-3 rounded-xl"><Check size={20} /></button>
               <button onClick={() => setIsCreating(false)} className="bg-gray-100 dark:bg-gray-700 text-gray-400 p-3 rounded-xl"><X size={20} /></button>
             </div>
           </div>
         )}
 
+        {/* Groups Grid */}
         <div className="grid gap-4">
           {groups.map(group => (
             <div
@@ -284,7 +289,7 @@ export default function CirclesPage({ userId }) {
                 {!group.is_member ? (
                   <button onClick={(e) => { e.stopPropagation(); handleJoinFromList(group.id); }} className="bg-[#D45D21] text-white px-4 py-2 rounded-lg text-xs font-black uppercase">Join</button>
                 ) : (
-                  <div className="text-[10px] font-black text-[#3E7C7D] dark:text-teal-400 uppercase bg-[#3E7C7D]/5 dark:bg-teal-900/20 px-2 py-1 rounded">Joined</div>
+                  <div className="text-[10px] font-black text-[#3E7C7D] dark:text-teal-400 uppercase bg-[#3E7C7D]/5 dark:bg-teal-900/20 px-2 py-1 rounded">Member</div>
                 )}
               </div>
             </div>
