@@ -110,40 +110,32 @@ export const getGoalLogs = async (userId) => {
 
 const generateJoinCode = () => Math.random().toString(36).substring(2, 8).toUpperCase();
 
-export const createGroup = async (userId, groupName) => {
-  const joinCode = generateJoinCode();
-  const { data: groupData, error: groupError } = await supabase
-    .from('groups')
-    .insert([{ name: groupName, owner_id: userId, join_code: joinCode }])
-    .select()
-    .single();
-
-  if (groupError) return { error: groupError };
-
-  await supabase.from('group_members').insert([{ group_id: groupData.id, user_id: userId }]);
-  return { data: groupData, error: null };
-};
-
-// Renamed to avoid duplication conflict
+// FIX: Removed duplicate and updated 'owner_id' to 'created_by'
 export const createGroup = async (userId, groupName) => {
   const joinCode = generateJoinCode();
 
-  // FIX: Change 'owner_id' to 'created_by' to match your Supabase table
   const { data: groupData, error: groupError } = await supabase
     .from('groups')
-    .insert([{ name: groupName, created_by: userId, join_code: joinCode }])
+    .insert([{ 
+      name: groupName, 
+      created_by: userId, // Matches your Supabase table
+      join_code: joinCode 
+    }])
     .select()
     .single();
 
   if (groupError) return { error: groupError };
 
   // This part adds the creator to the members list
-  await supabase.from('group_members').insert([{ group_id: groupData.id, user_id: userId }]);
+  const { error: memberError } = await supabase
+    .from('group_members')
+    .insert([{ group_id: groupData.id, user_id: userId }]);
   
+  if (memberError) return { error: memberError };
+
   return { data: groupData, error: null };
 };
 
-// This is the one used by your "Join" button in the list
 export const joinGroup = async (groupId, userId) => {
   return await supabase
     .from('group_members')
@@ -202,5 +194,5 @@ export const deleteGroup = async (groupId, userId) => {
   return await supabase
     .from('groups')
     .delete()
-    .match({ id: groupId, owner_id: userId });
+    .match({ id: groupId, created_by: userId }); // FIX: Changed owner_id to created_by
 };
