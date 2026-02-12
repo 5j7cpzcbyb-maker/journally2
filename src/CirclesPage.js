@@ -101,7 +101,7 @@ export default function CirclesPage({ userId }) {
 
   // --- VIEW 1: Leaderboard & Personal Goals ---
   if (selectedGroup) {
-    // FIX: Changed owner_id to created_by to match your database schema
+    // Corrected to match your Supabase column name 'created_by'
     const isOwner = selectedGroup.created_by === userId;
     const currentUserData = members.find(m => m.id === userId);
     
