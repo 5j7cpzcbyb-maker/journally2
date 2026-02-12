@@ -1,259 +1,174 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { CheckCircle2, Flame, Target, Lightbulb, TrendingUp, RefreshCw } from 'lucide-react';
-import { getAllGoalsHistory, getGoalLogs } from './api';
+import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { LayoutGrid, CheckCircle2, Users2 } from 'lucide-react';
+import { supabase } from './supabaseClient';
+import DailyPage from './DailyPage';
+import Auth from './Auth'; 
+import SummaryPage from './SummaryPage';
+import CirclesPage from './CirclesPage';
+import SettingsPage from './SettingsPage';
+import { getUserProfile } from './api'; // Import your profile fetcher
 
-export default function SummaryPage({ userId }) {
-  const [goals, setGoals] = useState([]);
-  const [logs, setLogs] = useState([]);
-  const [selectedGoalId, setSelectedGoalId] = useState('all');
-  const [isLoading, setIsLoading] = useState(false);
-  const [refreshTrigger, setRefreshTrigger] = useState(0); // Used to trigger re-fetch
+export default function App() {
+  const [currentPage, setCurrentPage] = useState('Daily');
+  const [user, setUser] = useState(null);
+  const [showMenu, setShowMenu] = useState(false);
 
-  // 1. Wrapped fetchData in useCallback so it can be called manually
-  const fetchData = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      const { data: goalsData } = await getAllGoalsHistory(userId);
-      const { data: logsData } = await getGoalLogs(userId);
-      setGoals(goalsData || []);
-      setLogs(logsData || []);
-    } catch (error) {
-      console.error("Error refreshing data:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [userId]);
-
-  // 2. Effect now runs on mount AND whenever refreshTrigger changes
+  // NEW: Theme Sync Logic
   useEffect(() => {
-    fetchData();
-  }, [fetchData, refreshTrigger]);
-
-  const last30Days = [...Array(30)].map((_, i) => {
-    const d = new Date();
-    d.setDate(d.getDate() - (29 - i));
-    return d.toISOString().split('T')[0];
-  });
-
-  const isDark = typeof document !== 'undefined' && document.documentElement.classList.contains('dark');
-
-  const themeColors = {
-    notStarted: isDark ? 'rgb(55, 65, 81)' : 'rgb(209, 213, 219)', 
-    missed: isDark ? 'rgb(17, 24, 39)' : 'rgb(243, 244, 246)',    
-    brandGreen: 'rgb(62, 124, 125)'
-  };
-
-  // --- CALCULATIONS ---
-  const calculateCompletionRate = () => {
-    if (goals.length === 0) return 0;
-    const today = new Date();
-    if (selectedGoalId === 'all') {
-      let totalPotential = 0;
-      goals.forEach(g => {
-        const createdAt = new Date(g.created_at);
-        const diffDays = Math.ceil(Math.abs(today - createdAt) / (1000 * 60 * 60 * 24)) || 1; 
-        totalPotential += diffDays;
-      });
-      return Math.min(Math.round((logs.length / totalPotential) * 100), 100);
-    } else {
-      const goal = goals.find(g => g.id === selectedGoalId);
-      if (!goal) return 0;
-      const createdAt = new Date(goal.created_at);
-      const potentialDays = Math.ceil(Math.abs(today - createdAt) / (1000 * 60 * 60 * 24)) || 1;
-      const actualCompletions = logs.filter(l => l.goal_id === selectedGoalId).length;
-      return Math.min(Math.round((actualCompletions / potentialDays) * 100), 100);
-    }
-  };
-
-  const calculateStreak = () => {
-    let streak = 0;
-    const today = new Date();
-    for (let i = 0; i < 30; i++) {
-      const d = new Date();
-      d.setDate(today.getDate() - i);
-      const dateStr = d.toISOString().split('T')[0];
-      const hasLog = selectedGoalId === 'all' 
-        ? logs.some(l => l.completed_at === dateStr)
-        : logs.some(l => l.completed_at === dateStr && l.goal_id === selectedGoalId);
-      if (hasLog) streak++;
-      else if (i > 0) break; 
-    }
-    return streak;
-  };
-
-  const completionRate = calculateCompletionRate();
-  const currentStreak = calculateStreak();
-
-  // --- ANALYSIS LOGIC FOR PERSONALIZED FEEDBACK ---
-  const getPersonalizedFeedback = () => {
-    const activeGoals = goals.filter(g => !g.is_deleted);
-    const today = new Date().toISOString().split('T')[0];
-    const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
-    
-    const completedGoalIds = new Set(logs.map(l => l.goal_id));
-    const neglectedGoals = activeGoals.filter(g => !completedGoalIds.has(g.id));
-
-    if (activeGoals.length === 0) {
-      return {
-        title: "Ready to Start?",
-        text: "The first step is always the hardest. Define your first goal to begin your journey of consistency.",
-        icon: <Target className="text-blue-500" />,
-        highlight: "Action: Add a small, 5-minute habit."
-      };
-    }
-
-    if (completionRate >= 80) {
-      return {
-        title: "Elite Momentum",
-        text: "Your discipline is becoming a part of your identity. You're showing up even when it's hard.",
-        icon: <TrendingUp className="text-green-500" />,
-        highlight: `Doing Right: You're mastering ${activeGoals.length} habits simultaneously.`
-      };
-    }
-
-    if (neglectedGoals.length > 0 && selectedGoalId === 'all') {
-      return {
-        title: "Balance Required",
-        text: "You're making progress, but some areas need your attention. Don't let your other ambitions slide.",
-        icon: <Lightbulb className="text-yellow-500" />,
-        highlight: `Focus: Try checking off "${neglectedGoals[0].title}" tomorrow.`
-      };
-    }
-
-    const activeLogsRecent = logs.some(l => l.completed_at === today || l.completed_at === yesterday);
-    if (!activeLogsRecent && logs.length > 0) {
-      return {
-        title: "Time to Reset",
-        text: "A slip is only a failure if you don't get back up. Forget about yesterday—focus on winning today.",
-        icon: <Flame className="text-orange-500" />,
-        highlight: "Focus: Just complete one goal to restart your streak."
-      };
-    }
-
-    return {
-      title: "Building Foundation",
-      text: "You are inconsistent because you're still building the muscle. Keep going; the results are in the repetitions.",
-      icon: <TrendingUp className="text-[#3E7C7D]" />,
-      highlight: "Doing Right: You are tracking your data, which is the key to awareness."
+    const syncTheme = async () => {
+      if (user) {
+        const { data } = await getUserProfile(user.id);
+        if (data?.is_dark_mode) {
+          document.documentElement.classList.add('dark');
+        } else {
+          document.documentElement.classList.remove('dark');
+        }
+      }
     };
+    syncTheme();
+  }, [user]);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const retroTheme = {
+    // Modified to support dark mode background shift
+    background: "bg-[#F5E6CA] dark:bg-gray-900 transition-colors duration-500",
+    accent: "text-[#D45D21]",
+    font: "'Lobster', cursive"
   };
 
-  const feedback = getPersonalizedFeedback();
+  if (!user) {
+    return (
+      <div className={`min-h-screen ${retroTheme.background} p-4`}>
+        <h1 className={`text-6xl text-center pt-20 ${retroTheme.accent}`} style={{ fontFamily: retroTheme.font }}>
+          Journally
+        </h1>
+        <Auth />
+      </div>
+    );
+  }
 
-  const getDynamicStyle = (date) => {
-    const goalsExistedOnDate = goals.filter(g => date >= g.created_at.split('T')[0]);
-    if (selectedGoalId !== 'all') {
-      const goal = goals.find(g => g.id === selectedGoalId);
-      const isBeforeCreation = goal && date < goal.created_at.split('T')[0];
-      const isCompleted = logs.some(l => l.completed_at === date && l.goal_id === selectedGoalId);
-      if (isBeforeCreation) return { backgroundColor: themeColors.notStarted };
-      if (isCompleted) return { backgroundColor: themeColors.brandGreen };
-      return { backgroundColor: themeColors.missed };
-    }
-    if (goalsExistedOnDate.length === 0) return { backgroundColor: themeColors.notStarted };
-    const activeGoalsCount = goalsExistedOnDate.filter(g => !g.is_deleted).length;
-    const completedOnDate = logs.filter(l => l.completed_at === date).length;
-    if (activeGoalsCount === 0 || completedOnDate === 0) return { backgroundColor: themeColors.missed };
-    const percentage = completedOnDate / activeGoalsCount;
-    const alpha = 0.2 + (percentage * 0.8); 
-    return { backgroundColor: `rgba(62, 124, 125, ${alpha})` };
-  };
+  const navItems = [
+    { id: 'Summary', label: 'Summary', icon: LayoutGrid },
+    { id: 'Daily', label: 'Daily', icon: CheckCircle2, isCenter: true },
+    { id: 'Circles', label: 'Circles', icon: Users2 },
+  ];
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-500 pb-32 px-4 pt-4">
-      <div className="max-w-md mx-auto space-y-8">
+    // Changed text-gray-800 to dark:text-gray-100
+    <div className={`min-h-screen ${retroTheme.background} text-gray-800 dark:text-gray-100`}>
+      <header className="pt-10 pb-6 text-center relative px-6">
+        <h1 className={`text-6xl ${retroTheme.accent}`} style={{ fontFamily: retroTheme.font }}>
+          Journally
+        </h1>
         
-        <div className="text-center relative">
-          <h2 className="text-3xl font-bold text-[#3E7C7D] dark:text-white mb-4">Progress Gallery</h2>
-          
-          {/* OPTIONAL: A small refresh button on the page itself for testing */}
-          <button 
-            onClick={() => setRefreshTrigger(prev => prev + 1)}
-            className={`absolute right-0 top-1 p-2 rounded-full transition-all ${isLoading ? 'animate-spin text-[#D45D21]' : 'text-gray-400'}`}
-          >
-            <RefreshCw size={20} />
-          </button>
-
-          <select 
-            className="w-full p-3 rounded-xl border-2 border-[#D45D21] bg-white dark:bg-gray-800 dark:text-white outline-none font-bold appearance-none transition-colors"
-            value={selectedGoalId}
-            onChange={(e) => setSelectedGoalId(e.target.value)}
-          >
-            <option value="all">Overall Combined Progress</option>
-            {goals.filter(g => !g.is_deleted).map(goal => (
-              <option key={goal.id} value={goal.id}>{goal.title}</option>
-            ))}
-          </select>
-        </div>
-
-        {/* HEATMAP GRID */}
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-3xl shadow-xl border-b-8 border-[#D45D21] transition-colors">
-          <div className="grid grid-cols-7 gap-2">
-            {last30Days.map(date => (
-              <div 
-                key={date}
-                style={getDynamicStyle(date)}
-                className="h-10 w-10 rounded-lg border border-black/5 dark:border-white/5 transition-all duration-700"
-              />
-            ))}
+        <button 
+          onClick={() => setShowMenu(!showMenu)} 
+          className="absolute right-6 top-12 text-[#3E7C7D] dark:text-teal-400 hover:scale-110 transition-transform"
+        >
+          <div className="space-y-1">
+            <div className="w-8 h-1 bg-[#3E7C7D] dark:bg-teal-400 rounded"></div>
+            <div className="w-8 h-1 bg-[#3E7C7D] dark:bg-teal-400 rounded"></div>
+            <div className="w-8 h-1 bg-[#3E7C7D] dark:bg-teal-400 rounded"></div>
           </div>
-          
-          <div className="mt-6 flex flex-wrap justify-center gap-x-4 gap-y-2">
-              <div className="flex items-center gap-1.5">
-                <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: themeColors.notStarted }} />
-                <span className="text-[10px] font-bold text-gray-400 uppercase">Not Started</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: themeColors.missed }} />
-                <span className="text-[10px] font-bold text-gray-400 uppercase">Missed</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <div className="w-12 h-3 rounded-sm bg-gradient-to-r from-[#3E7C7D]/20 to-[#3E7C7D]" />
-                <span className="text-[10px] font-bold text-gray-400 uppercase">Progress</span>
-              </div>
+        </button>
+
+        <p className="mt-2 text-lg italic opacity-90">Welcome, {user?.user_metadata?.first_name}</p>
+
+        {showMenu && (
+          // Added dark:bg-gray-800 and dark:border-gray-700
+          <div className="absolute top-24 right-6 bg-white dark:bg-gray-800 shadow-2xl rounded-2xl p-4 z-50 border-2 border-[#D45D21] w-40">
+            <button 
+              onClick={() => { setCurrentPage('Settings'); setShowMenu(false); }} 
+              className="block w-full text-left p-2 hover:bg-orange-50 dark:hover:bg-gray-700 rounded font-bold text-[#3E7C7D] dark:text-teal-400"
+            >
+              Settings
+            </button>
+            <hr className="my-2 dark:border-gray-600" />
+            <button 
+              onClick={() => supabase.auth.signOut()} 
+              className="block w-full text-left p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"
+            >
+              Logout
+            </button>
           </div>
-        </div>
+        )}
+      </header>
 
-        {/* STATS TILES */}
-        <div className="grid grid-cols-2 gap-4">
-            <div className="bg-[#D45D21] text-white p-6 rounded-3xl shadow-lg text-center relative overflow-hidden">
-                <div className="absolute -right-2 -bottom-2 opacity-20">
-                    <CheckCircle2 size={60} />
-                </div>
-                <p className="text-[10px] opacity-80 uppercase tracking-widest font-bold">Consistency</p>
-                <p className="text-4xl font-black mt-1">{completionRate}%</p>
-            </div>
+      <main className="px-4 pb-40">
+        <AnimatePresence mode="wait">
+          {currentPage === 'Daily' && (
+            <motion.div key="daily" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }}>
+              <DailyPage userId={user.id} />
+            </motion.div>
+          )}
 
-            <div className="bg-[#3E7C7D] text-white p-6 rounded-3xl shadow-lg text-center relative overflow-hidden">
-                <div className="absolute -right-2 -bottom-2 opacity-20">
-                    <Flame size={60} />
-                </div>
-                <p className="text-[10px] opacity-80 uppercase tracking-widest font-bold">Current Streak</p>
-                <p className="text-4xl font-black mt-1">{currentStreak}d</p>
-            </div>
-        </div>
+          {currentPage === 'Summary' && (
+            <motion.div key="summary" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }}>
+              <SummaryPage userId={user.id} />
+            </motion.div>
+          )}
 
-        {/* ADVANCED PERSONALIZED FEEDBACK CARD */}
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-3xl shadow-xl border-t-4 border-[#3E7C7D] transition-colors">
-          <div className="flex items-start gap-4">
-            <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-2xl">
-              {feedback.icon}
-            </div>
-            <div className="space-y-1">
-              <h3 className="font-bold text-gray-900 dark:text-white">{feedback.title}</h3>
-              <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
-                {feedback.text}
-              </p>
-            </div>
-          </div>
-          <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-700">
-             <div className="bg-[#3E7C7D]/10 dark:bg-[#3E7C7D]/20 p-3 rounded-xl">
-               <p className="text-xs font-bold text-[#3E7C7D] dark:text-[#52a4a5] uppercase tracking-wider mb-1">Coach's Note</p>
-               <p className="text-sm font-medium text-gray-800 dark:text-gray-200">{feedback.highlight}</p>
-             </div>
-          </div>
-        </div>
+          {currentPage === 'Circles' && (
+            <motion.div key="circles" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
+              <CirclesPage userId={user.id} />
+            </motion.div>
+          )}
 
+          {currentPage === 'Settings' && (
+            <motion.div key="settings" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
+              <SettingsPage userId={user.id} />
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </main>
+
+      {/* MODERN NAVIGATION: Dark mode styling */}
+      <div className="fixed bottom-6 left-0 right-0 px-4 z-50">
+        <nav className="max-w-md mx-auto bg-white/90 dark:bg-gray-800/90 backdrop-blur-md border border-white/20 dark:border-gray-700 shadow-2xl rounded-[2.5rem] flex items-center justify-around p-2 h-20">
+          {navItems.map((item) => {
+            const Icon = item.icon;
+            const isActive = currentPage === item.id;
+
+            if (item.isCenter) {
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => setCurrentPage(item.id)}
+                  className="relative -top-8 bg-[#D45D21] text-white p-5 rounded-full shadow-[0_10px_25px_rgba(212,93,33,0.5)] hover:scale-110 active:scale-95 transition-all duration-300 border-4 border-[#F5E6CA] dark:border-gray-900"
+                >
+                  <Icon size={32} strokeWidth={2.5} />
+                </button>
+              );
+            }
+
+            return (
+              <button
+                key={item.id}
+                onClick={() => setCurrentPage(item.id)}
+                className={`flex flex-col items-center gap-1 px-6 transition-all duration-300 ${
+                  isActive ? 'text-[#3E7C7D] dark:text-teal-400 scale-110' : 'text-gray-400 hover:text-[#3E7C7D]'
+                }`}
+              >
+                <Icon size={24} strokeWidth={isActive ? 3 : 2} />
+                <span className="text-[10px] font-bold uppercase tracking-widest">
+                  {item.label}
+                </span>
+              </button>
+            );
+          })}
+        </nav>
       </div>
     </div>
   );
