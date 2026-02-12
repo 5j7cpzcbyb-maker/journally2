@@ -113,7 +113,6 @@ const generateJoinCode = () => Math.random().toString(36).substring(2, 8).toUppe
 export const createGroup = async (userId, groupName) => {
   const joinCode = generateJoinCode();
 
-  // Matches your Supabase table column 'created_by'
   const { data: groupData, error: groupError } = await supabase
     .from('groups')
     .insert([{ 
@@ -136,9 +135,7 @@ export const createGroup = async (userId, groupName) => {
   return { data: groupData, error: null };
 };
 
-// ADDED: This fixes the "Attempted import error" from your screenshot
 export const joinGroupByCode = async (userId, inputCode) => {
-  // 1. Find the group with that code
   const { data: groupData, error: groupError } = await supabase
     .from('groups')
     .select('id')
@@ -147,7 +144,6 @@ export const joinGroupByCode = async (userId, inputCode) => {
 
   if (groupError || !groupData) return { error: "Invalid or expired join code." };
 
-  // 2. Add the user to that group
   const { error: joinError } = await supabase
     .from('group_members')
     .insert([{ group_id: groupData.id, user_id: userId }]);
@@ -182,15 +178,19 @@ export const getGroups = async (userId) => {
   return { data: formattedData, error: null };
 };
 
+// UPDATED: Added logic to identify the founder
 export const getGroupMembers = async (groupId) => {
   const today = new Date().toISOString().split('T')[0];
+  
+  // We perform an inner join on the groups table to get the 'created_by' field
   const { data, error } = await supabase
     .from('group_members')
     .select(`
       user_id,
       profiles(name),
       goals(id, title, is_deleted),
-      goal_logs(id, completed_at, goal_id)
+      goal_logs(id, completed_at, goal_id),
+      groups!inner(created_by)
     `)
     .eq('group_id', groupId);
 
@@ -200,6 +200,8 @@ export const getGroupMembers = async (groupId) => {
     data: data.map(member => ({
       id: member.user_id,
       name: member.profiles?.name || "Anonymous",
+      // This identifies if the user is the founder
+      is_founder: member.user_id === member.groups.created_by,
       total_habits: member.goals?.filter(g => !g.is_deleted).length || 0,
       completed_today: member.goal_logs?.filter(l => l.completed_at === today).length || 0
     })),
