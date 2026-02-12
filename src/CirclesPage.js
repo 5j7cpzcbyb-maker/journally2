@@ -44,6 +44,8 @@ export default function CirclesPage({ userId }) {
       setNewGroupName('');
       setIsCreating(false);
       fetchGroups();
+    } else {
+      alert(`Error creating group: ${error.message}`);
     }
   };
 
@@ -99,10 +101,10 @@ export default function CirclesPage({ userId }) {
 
   // --- VIEW 1: Leaderboard & Personal Goals ---
   if (selectedGroup) {
-    const isOwner = selectedGroup.owner_id === userId;
+    // FIX: Changed owner_id to created_by to match your database schema
+    const isOwner = selectedGroup.created_by === userId;
     const currentUserData = members.find(m => m.id === userId);
     
-    // Sort squad by completion percentage
     const otherMembers = members
       .filter(m => m.id !== userId)
       .sort((a, b) => {
@@ -112,15 +114,13 @@ export default function CirclesPage({ userId }) {
       });
 
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 pb-32 px-4 pt-4">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 pb-32 px-4 pt-4 transition-colors duration-500">
         <div className="max-w-md mx-auto space-y-6">
-          {/* Header Actions */}
           <div className="flex justify-between items-center">
             <button onClick={() => setSelectedGroup(null)} className="flex items-center text-[#3E7C7D] dark:text-teal-400 font-bold gap-1">
               <ChevronLeft size={20} /> Back
             </button>
             
-            {/* Logic Fix: Owner vs Member Controls */}
             {isOwner ? (
               <button onClick={(e) => handleDelete(e, selectedGroup.id)} className="text-red-500 flex items-center gap-1 text-[10px] font-black uppercase tracking-widest bg-red-50 dark:bg-red-900/20 px-3 py-2 rounded-xl">
                 <Trash2 size={14} /> Delete Circle
@@ -132,7 +132,6 @@ export default function CirclesPage({ userId }) {
             )}
           </div>
 
-          {/* 1. YOUR GOALS (Top Priority) */}
           {currentUserData && (
             <div className="bg-white dark:bg-gray-800 p-6 rounded-3xl shadow-xl border-2 border-[#D45D21]">
               <div className="flex justify-between items-start mb-4">
@@ -170,7 +169,6 @@ export default function CirclesPage({ userId }) {
             </div>
           )}
 
-          {/* 2. SQUAD SUMMARY */}
           <div className="space-y-4">
             <div className="flex items-center justify-between px-1">
               <div className="flex items-center gap-2">
@@ -222,7 +220,7 @@ export default function CirclesPage({ userId }) {
 
   // --- VIEW 2: List View ---
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 pb-32 px-4 pt-4">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 pb-32 px-4 pt-4 transition-colors duration-500">
       <div className="max-w-md mx-auto space-y-6">
         <div className="flex justify-between items-end">
           <div>
@@ -243,7 +241,6 @@ export default function CirclesPage({ userId }) {
           </div>
         </div>
 
-        {/* Modal-style Inputs for Join/Create */}
         {isJoiningCode && (
           <div className="bg-white dark:bg-gray-800 p-4 rounded-2xl shadow-xl border-2 border-[#3E7C7D]">
             <p className="text-[10px] font-black text-[#3E7C7D] uppercase mb-2 ml-1">Enter Circle Code</p>
@@ -266,7 +263,6 @@ export default function CirclesPage({ userId }) {
           </div>
         )}
 
-        {/* Groups Grid */}
         <div className="grid gap-4">
           {groups.map(group => (
             <div
