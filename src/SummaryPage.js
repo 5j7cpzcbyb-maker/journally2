@@ -23,34 +23,37 @@ export default function SummaryPage({ userId }) {
     return d.toISOString().split('T')[0];
   });
 
-  // HELPER: Returns dynamic colors compatible with Light/Dark backgrounds
+  // Check for dark mode once for the render cycle
+  const isDark = typeof document !== 'undefined' && document.documentElement.classList.contains('dark');
+
+  // Unified color source for both Grid and Legend
+  const themeColors = {
+    // gray-700 in dark mode / gray-300 in light mode
+    notStarted: isDark ? 'rgb(55, 65, 81)' : 'rgb(209, 213, 219)', 
+    // gray-950 in dark mode / gray-100 in light mode
+    missed: isDark ? 'rgb(17, 24, 39)' : 'rgb(243, 244, 246)',    
+    brandGreen: 'rgb(62, 124, 125)'
+  };
+
   const getDynamicStyle = (date) => {
-    const isDark = document.documentElement.classList.contains('dark');
     const goalsExistedOnDate = goals.filter(g => date >= g.created_at.split('T')[0]);
     
-    // Colors for specific states
-    const colors = {
-      notStarted: isDark ? 'rgb(75, 85, 99)' : 'rgb(156, 163, 175)', // gray-600 vs gray-400
-      missed: isDark ? 'rgb(31, 41, 55)' : 'rgb(243, 244, 246)',    // gray-900 vs gray-100
-      brandGreen: 'rgb(62, 124, 125)'
-    };
-
     if (selectedGoalId !== 'all') {
       const goal = goals.find(g => g.id === selectedGoalId);
       const isBeforeCreation = goal && date < goal.created_at.split('T')[0];
       const isCompleted = logs.some(l => l.completed_at === date && l.goal_id === selectedGoalId);
       
-      if (isBeforeCreation) return { backgroundColor: colors.notStarted };
-      if (isCompleted) return { backgroundColor: colors.brandGreen };
-      return { backgroundColor: colors.missed };
+      if (isBeforeCreation) return { backgroundColor: themeColors.notStarted };
+      if (isCompleted) return { backgroundColor: themeColors.brandGreen };
+      return { backgroundColor: themeColors.missed };
     }
 
-    if (goalsExistedOnDate.length === 0) return { backgroundColor: colors.notStarted };
+    if (goalsExistedOnDate.length === 0) return { backgroundColor: themeColors.notStarted };
 
     const activeGoalsCount = goalsExistedOnDate.filter(g => !g.is_deleted).length;
     const completedOnDate = logs.filter(l => l.completed_at === date).length;
 
-    if (activeGoalsCount === 0 || completedOnDate === 0) return { backgroundColor: colors.missed };
+    if (activeGoalsCount === 0 || completedOnDate === 0) return { backgroundColor: themeColors.missed };
     
     const percentage = completedOnDate / activeGoalsCount;
     const alpha = 0.2 + (percentage * 0.8); 
@@ -113,14 +116,20 @@ export default function SummaryPage({ userId }) {
             ))}
           </div>
           
-          {/* LEGEND */}
+          {/* LEGEND: Now uses dynamic styles to match the grid exactly */}
           <div className="mt-6 flex flex-wrap justify-center gap-x-4 gap-y-2">
               <div className="flex items-center gap-1.5">
-                <div className="w-3 h-3 bg-gray-400 dark:bg-gray-600 rounded-sm" />
+                <div 
+                  className="w-3 h-3 rounded-sm" 
+                  style={{ backgroundColor: themeColors.notStarted }} 
+                />
                 <span className="text-[10px] font-bold text-gray-400 uppercase">Not Started</span>
               </div>
               <div className="flex items-center gap-1.5">
-                <div className="w-3 h-3 bg-gray-100 dark:bg-gray-900 rounded-sm" />
+                <div 
+                  className="w-3 h-3 rounded-sm" 
+                  style={{ backgroundColor: themeColors.missed }} 
+                />
                 <span className="text-[10px] font-bold text-gray-400 uppercase">Missed</span>
               </div>
               <div className="flex items-center gap-1.5">
