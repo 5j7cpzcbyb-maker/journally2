@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, Users, Trophy, Trash2, LogOut, Plus, X, Check, Key, Copy } from 'lucide-react';
+import { ChevronLeft, Users, Trophy, Trash2, LogOut, Plus, X, Check, Key, Copy, Crown } from 'lucide-react';
 import { 
   getGroups, 
   getGroupMembers, 
@@ -101,12 +101,15 @@ export default function CirclesPage({ userId }) {
 
   // --- VIEW 1: Leaderboard & Personal Goals ---
   if (selectedGroup) {
-    // Corrected to match your Supabase column name 'created_by'
     const isOwner = selectedGroup.created_by === userId;
     const currentUserData = members.find(m => m.id === userId);
     
+    // Find the Founder (if it's not the current user)
+    const founderData = members.find(m => m.is_founder && m.id !== userId);
+    
+    // Squad members (excluding current user and founder if founder is someone else)
     const otherMembers = members
-      .filter(m => m.id !== userId)
+      .filter(m => m.id !== userId && !m.is_founder)
       .sort((a, b) => {
         const scoreA = a.total_habits > 0 ? a.completed_today / a.total_habits : 0;
         const scoreB = b.total_habits > 0 ? b.completed_today / b.total_habits : 0;
@@ -132,19 +135,20 @@ export default function CirclesPage({ userId }) {
             )}
           </div>
 
+          {/* 1. YOUR PROGRESS CARD */}
           {currentUserData && (
             <div className="bg-white dark:bg-gray-800 p-6 rounded-3xl shadow-xl border-2 border-[#D45D21]">
               <div className="flex justify-between items-start mb-4">
                 <div>
                   <h3 className="text-[10px] font-black text-[#D45D21] uppercase tracking-widest">
-                    {isOwner ? "Founder's Progress" : "My Progress"}
+                    {isOwner ? "Founder's Progress (You)" : "My Progress"}
                   </h3>
                   <h2 className="text-2xl font-bold text-gray-800 dark:text-white">
                     {selectedGroup.name}
                   </h2>
                 </div>
                 <div className="bg-[#D45D21]/10 p-2 rounded-xl text-[#D45D21]">
-                  <Trophy size={24} />
+                  {isOwner ? <Crown size={24} /> : <Trophy size={24} />}
                 </div>
               </div>
               
@@ -169,6 +173,33 @@ export default function CirclesPage({ userId }) {
             </div>
           )}
 
+          {/* 2. FOUNDER AREA (Only shows if current user is NOT the owner) */}
+          {founderData && (
+            <div className="space-y-3">
+               <div className="flex items-center gap-2 px-1">
+                <Crown size={14} className="text-[#3E7C7D]" />
+                <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest">Circle Founder</h3>
+              </div>
+              <div className="bg-white dark:bg-gray-800 p-4 rounded-2xl shadow-sm border border-[#3E7C7D]/20 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-[#3E7C7D] flex items-center justify-center text-white font-black text-sm">
+                    {founderData.name.charAt(0)}
+                  </div>
+                  <div>
+                    <p className="font-bold text-gray-700 dark:text-gray-200 text-sm">{founderData.name}</p>
+                    <p className="text-[10px] text-gray-400 font-bold uppercase">{founderData.completed_today} / {founderData.total_habits} Goals</p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="font-black text-[#3E7C7D] dark:text-teal-400">
+                    {founderData.total_habits > 0 ? Math.round((founderData.completed_today / founderData.total_habits) * 100) : 0}%
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* 3. SQUAD SUMMARY */}
           <div className="space-y-4">
             <div className="flex items-center justify-between px-1">
               <div className="flex items-center gap-2">
@@ -277,8 +308,11 @@ export default function CirclesPage({ userId }) {
                   <div className={`p-3 rounded-xl ${group.is_member ? 'bg-[#3E7C7D]/10 dark:bg-teal-900/30 text-[#3E7C7D] dark:text-teal-400' : 'bg-gray-100 dark:bg-gray-900 text-gray-400'}`}>
                     <Users size={20} />
                   </div>
-                  <div>
-                    <p className="font-bold text-gray-800 dark:text-white">{group.name}</p>
+                  <div className="flex flex-col">
+                    <div className="flex items-center gap-1">
+                      <p className="font-bold text-gray-800 dark:text-white">{group.name}</p>
+                      {group.created_by === userId && <Crown size={12} className="text-[#D45D21]" />}
+                    </div>
                     <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{group.member_count} Members</p>
                   </div>
                 </div>
