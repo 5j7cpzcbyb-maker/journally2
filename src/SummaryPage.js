@@ -1,21 +1,33 @@
-import React, { useState, useEffect } from 'react';
-import { CheckCircle2, Flame, Target, Lightbulb, TrendingUp } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { CheckCircle2, Flame, Target, Lightbulb, TrendingUp, RefreshCw } from 'lucide-react';
 import { getAllGoalsHistory, getGoalLogs } from './api';
 
 export default function SummaryPage({ userId }) {
   const [goals, setGoals] = useState([]);
   const [logs, setLogs] = useState([]);
   const [selectedGoalId, setSelectedGoalId] = useState('all');
+  const [isLoading, setIsLoading] = useState(false);
+  const [refreshTrigger, setRefreshTrigger] = useState(0); // Used to trigger re-fetch
 
-  useEffect(() => {
-    const fetchData = async () => {
+  // 1. Wrapped fetchData in useCallback so it can be called manually
+  const fetchData = useCallback(async () => {
+    setIsLoading(true);
+    try {
       const { data: goalsData } = await getAllGoalsHistory(userId);
       const { data: logsData } = await getGoalLogs(userId);
       setGoals(goalsData || []);
       setLogs(logsData || []);
-    };
-    fetchData();
+    } catch (error) {
+      console.error("Error refreshing data:", error);
+    } finally {
+      setIsLoading(false);
+    }
   }, [userId]);
+
+  // 2. Effect now runs on mount AND whenever refreshTrigger changes
+  useEffect(() => {
+    fetchData();
+  }, [fetchData, refreshTrigger]);
 
   const last30Days = [...Array(30)].map((_, i) => {
     const d = new Date();
@@ -31,101 +43,7 @@ export default function SummaryPage({ userId }) {
     brandGreen: 'rgb(62, 124, 125)'
   };
 
-  // --- ANALYSIS LOGIC FOR PERSONALIZED FEEDBACK ---
-  const getPersonalizedFeedback = () => {
-    const activeGoals = goals.filter(g => !g.is_deleted);
-    const today = new Date().toISOString().split('T')[0];
-    const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
-    
-    const logsToday = logs.filter(l => l.completed_at === today);
-    const completedGoalIds = new Set(logs.map(l => l.goal_id));
-    const neglectedGoals = activeGoals.filter(g => !completedGoalIds.has(g.id));
-
-    // 1. New User / No Goals
-    if (activeGoals.length === 0) {
-      return {
-        title: "Ready to Start?",
-        text: "The first step is always the hardest. Define your first goal to begin your journey of consistency.",
-        icon: <Target className="text-blue-500" />,
-        highlight: "Action: Add a small, 5-minute habit."
-      };
-    }
-
-    // 2. High Consistency (Crushing it)
-    if (completionRate >= 80) {
-      return {
-        title: "Elite Momentum",
-        text: "Your discipline is becoming a part of your identity. You're showing up even when it's hard.",
-        icon: <TrendingUp className="text-green-500" />,
-        highlight: `Doing Right: You're mastering ${activeGoals.length} habits simultaneously.`
-      };
-    }
-
-    // 3. Focus on Neglected Goals
-    if (neglectedGoals.length > 0 && selectedGoalId === 'all') {
-      return {
-        title: "Balance Required",
-        text: "You're making progress, but some areas need your attention. Don't let your other ambitions slide.",
-        icon: <Lightbulb className="text-yellow-500" />,
-        highlight: `Focus: Try checking off "${neglectedGoals[0].title}" tomorrow.`
-      };
-    }
-
-    // 4. Recent Slip (Needs motivation)
-    const activeLogsRecent = logs.some(l => l.completed_at === today || l.completed_at === yesterday);
-    if (!activeLogsRecent && logs.length > 0) {
-      return {
-        title: "Time to Reset",
-        text: "A slip is only a failure if you don't get back up. Forget about yesterday—focus on winning today.",
-        icon: <Flame className="text-orange-500" />,
-        highlight: "Focus: Just complete one goal to restart your streak."
-      };
-    }
-
-    // 5. General Mid-range
-    return {
-      title: "Building Foundation",
-      text: "You are inconsistent because you're still building the muscle. Keep going; the results are in the repetitions.",
-      icon: <TrendingUp className="text-[#3E7C7D]" />,
-      highlight: "Doing Right: You are tracking your data, which is the key to awareness."
-    };
-  };
-
-  const getDynamicStyle = (date) => {
-    const goalsExistedOnDate = goals.filter(g => date >= g.created_at.split('T')[0]);
-    if (selectedGoalId !== 'all') {
-      const goal = goals.find(g => g.id === selectedGoalId);
-      const isBeforeCreation = goal && date < goal.created_at.split('T')[0];
-      const isCompleted = logs.some(l => l.completed_at === date && l.goal_id === selectedGoalId);
-      if (isBeforeCreation) return { backgroundColor: themeColors.notStarted };
-      if (isCompleted) return { backgroundColor: themeColors.brandGreen };
-      return { backgroundColor: themeColors.missed };
-    }
-    if (goalsExistedOnDate.length === 0) return { backgroundColor: themeColors.notStarted };
-    const activeGoalsCount = goalsExistedOnDate.filter(g => !g.is_deleted).length;
-    const completedOnDate = logs.filter(l => l.completed_at === date).length;
-    if (activeGoalsCount === 0 || completedOnDate === 0) return { backgroundColor: themeColors.missed };
-    const percentage = completedOnDate / activeGoalsCount;
-    const alpha = 0.2 + (percentage * 0.8); 
-    return { backgroundColor: `rgba(62, 124, 125, ${alpha})` };
-  };
-
-  const calculateStreak = () => {
-    let streak = 0;
-    const today = new Date();
-    for (let i = 0; i < 30; i++) {
-      const d = new Date();
-      d.setDate(today.getDate() - i);
-      const dateStr = d.toISOString().split('T')[0];
-      const hasLog = selectedGoalId === 'all' 
-        ? logs.some(l => l.completed_at === dateStr)
-        : logs.some(l => l.completed_at === dateStr && l.goal_id === selectedGoalId);
-      if (hasLog) streak++;
-      else if (i > 0) break; 
-    }
-    return streak;
-  };
-
+  // --- CALCULATIONS ---
   const calculateCompletionRate = () => {
     if (goals.length === 0) return 0;
     const today = new Date();
@@ -147,16 +65,115 @@ export default function SummaryPage({ userId }) {
     }
   };
 
+  const calculateStreak = () => {
+    let streak = 0;
+    const today = new Date();
+    for (let i = 0; i < 30; i++) {
+      const d = new Date();
+      d.setDate(today.getDate() - i);
+      const dateStr = d.toISOString().split('T')[0];
+      const hasLog = selectedGoalId === 'all' 
+        ? logs.some(l => l.completed_at === dateStr)
+        : logs.some(l => l.completed_at === dateStr && l.goal_id === selectedGoalId);
+      if (hasLog) streak++;
+      else if (i > 0) break; 
+    }
+    return streak;
+  };
+
   const completionRate = calculateCompletionRate();
   const currentStreak = calculateStreak();
+
+  // --- ANALYSIS LOGIC FOR PERSONALIZED FEEDBACK ---
+  const getPersonalizedFeedback = () => {
+    const activeGoals = goals.filter(g => !g.is_deleted);
+    const today = new Date().toISOString().split('T')[0];
+    const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+    
+    const completedGoalIds = new Set(logs.map(l => l.goal_id));
+    const neglectedGoals = activeGoals.filter(g => !completedGoalIds.has(g.id));
+
+    if (activeGoals.length === 0) {
+      return {
+        title: "Ready to Start?",
+        text: "The first step is always the hardest. Define your first goal to begin your journey of consistency.",
+        icon: <Target className="text-blue-500" />,
+        highlight: "Action: Add a small, 5-minute habit."
+      };
+    }
+
+    if (completionRate >= 80) {
+      return {
+        title: "Elite Momentum",
+        text: "Your discipline is becoming a part of your identity. You're showing up even when it's hard.",
+        icon: <TrendingUp className="text-green-500" />,
+        highlight: `Doing Right: You're mastering ${activeGoals.length} habits simultaneously.`
+      };
+    }
+
+    if (neglectedGoals.length > 0 && selectedGoalId === 'all') {
+      return {
+        title: "Balance Required",
+        text: "You're making progress, but some areas need your attention. Don't let your other ambitions slide.",
+        icon: <Lightbulb className="text-yellow-500" />,
+        highlight: `Focus: Try checking off "${neglectedGoals[0].title}" tomorrow.`
+      };
+    }
+
+    const activeLogsRecent = logs.some(l => l.completed_at === today || l.completed_at === yesterday);
+    if (!activeLogsRecent && logs.length > 0) {
+      return {
+        title: "Time to Reset",
+        text: "A slip is only a failure if you don't get back up. Forget about yesterday—focus on winning today.",
+        icon: <Flame className="text-orange-500" />,
+        highlight: "Focus: Just complete one goal to restart your streak."
+      };
+    }
+
+    return {
+      title: "Building Foundation",
+      text: "You are inconsistent because you're still building the muscle. Keep going; the results are in the repetitions.",
+      icon: <TrendingUp className="text-[#3E7C7D]" />,
+      highlight: "Doing Right: You are tracking your data, which is the key to awareness."
+    };
+  };
+
   const feedback = getPersonalizedFeedback();
+
+  const getDynamicStyle = (date) => {
+    const goalsExistedOnDate = goals.filter(g => date >= g.created_at.split('T')[0]);
+    if (selectedGoalId !== 'all') {
+      const goal = goals.find(g => g.id === selectedGoalId);
+      const isBeforeCreation = goal && date < goal.created_at.split('T')[0];
+      const isCompleted = logs.some(l => l.completed_at === date && l.goal_id === selectedGoalId);
+      if (isBeforeCreation) return { backgroundColor: themeColors.notStarted };
+      if (isCompleted) return { backgroundColor: themeColors.brandGreen };
+      return { backgroundColor: themeColors.missed };
+    }
+    if (goalsExistedOnDate.length === 0) return { backgroundColor: themeColors.notStarted };
+    const activeGoalsCount = goalsExistedOnDate.filter(g => !g.is_deleted).length;
+    const completedOnDate = logs.filter(l => l.completed_at === date).length;
+    if (activeGoalsCount === 0 || completedOnDate === 0) return { backgroundColor: themeColors.missed };
+    const percentage = completedOnDate / activeGoalsCount;
+    const alpha = 0.2 + (percentage * 0.8); 
+    return { backgroundColor: `rgba(62, 124, 125, ${alpha})` };
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-500 pb-32 px-4 pt-4">
       <div className="max-w-md mx-auto space-y-8">
         
-        <div className="text-center">
+        <div className="text-center relative">
           <h2 className="text-3xl font-bold text-[#3E7C7D] dark:text-white mb-4">Progress Gallery</h2>
+          
+          {/* OPTIONAL: A small refresh button on the page itself for testing */}
+          <button 
+            onClick={() => setRefreshTrigger(prev => prev + 1)}
+            className={`absolute right-0 top-1 p-2 rounded-full transition-all ${isLoading ? 'animate-spin text-[#D45D21]' : 'text-gray-400'}`}
+          >
+            <RefreshCw size={20} />
+          </button>
+
           <select 
             className="w-full p-3 rounded-xl border-2 border-[#D45D21] bg-white dark:bg-gray-800 dark:text-white outline-none font-bold appearance-none transition-colors"
             value={selectedGoalId}
